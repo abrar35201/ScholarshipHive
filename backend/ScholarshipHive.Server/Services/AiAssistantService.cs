@@ -39,7 +39,9 @@ public class AiAssistantService
         _httpClientFactory = httpClientFactory;
     }
 
-    private string? ApiKey => _config["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+    // Railway's Gemini__ApiKey environment variable binds to this setting.
+    // Keep credential lookup in configuration and never add it to the URL/logs.
+    private string? ApiKey => _config["Gemini:ApiKey"];
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);
 
     public async Task<string> AskAsync(string question, int? scopedUserId, List<ChatTurnDto> history)
@@ -47,7 +49,7 @@ public class AiAssistantService
         var apiKey = ApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            return "The AI Assistant isn't set up yet — an administrator needs to add a Gemini API key first.";
+            return "Gemini is not configured. Set Gemini:ApiKey (Railway: Gemini__ApiKey) in backend configuration.";
         }
 
         string? scopedUsername = null;
@@ -98,11 +100,18 @@ public class AiAssistantService
                 message.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
                 message.Content = new StringContent(requestBody.ToJsonString(), Encoding.UTF8, "application/json");
                 response = await client.SendAsync(message);
-                responseText = await response.Content.ReadAsStringAsync();
+                using (response)
+                {
+                    responseText = await response.Content.ReadAsStringAsync();
+                }
             }
-            catch (Exception ex) when (ex is TaskCanceledException or HttpRequestException)
+            catch (OperationCanceledException)
             {
-                return "The AI Assistant couldn't reach the model right now (connection timed out). Please try again shortly.";
+                return "Gemini took too long to respond. Please try again shortly.";
+            }
+            catch (HttpRequestException)
+            {
+                return "The AI Assistant couldn't reach Gemini right now. Check backend network access and try again shortly.";
             }
 
             if (!response.IsSuccessStatusCode)
@@ -112,13 +121,14 @@ public class AiAssistantService
                     System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden => "Gemini API key rejected. Create/verify your Google AI Studio key in backend configuration.",
                     System.Net.HttpStatusCode.TooManyRequests => "Gemini's free-tier request quota has been reached. Please retry later.",
                     System.Net.HttpStatusCode.NotFound => "Selected Gemini model isn't available for this API key. Set Gemini__Model to an available free-tier model.",
+                    System.Net.HttpStatusCode.BadRequest => "Gemini rejected the request. Check the configured model and request compatibility.",
                     _ => $"Gemini returned HTTP {(int)response.StatusCode}. Please retry or check the model configuration."
                 };
             }
 
             JsonObject root;
-            try { root = JsonNode.Parse(responseText)!.AsObject(); }
-            catch (JsonException) { return "Gemini returned an unreadable response. Please try again."; }
+            try { root = JsonNode.Parse(responseText)?.AsObject() ?? throw new JsonException(); }
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException) { return "Gemini returned an unreadable response. Please try again."; }
             var candidates = root["candidates"]?.AsArray();
             var firstCandidate = candidates?.FirstOrDefault();
             var partsNode = firstCandidate?["content"]?["parts"]?.AsArray();
@@ -380,9 +390,9 @@ public class AiAssistantService
                     return $"Unknown tool: {toolName}";
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return $"That lookup failed: {ex.Message}";
+            return "That data lookup failed. Please retry, or ask an administrator to check the service.";
         }
     }
 }

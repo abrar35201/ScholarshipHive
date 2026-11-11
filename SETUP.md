@@ -10,7 +10,7 @@
 ## 1. The backend is hosted in the cloud (Railway) — always on
 The backend and its database run on Railway, not on your laptop. **This means the whole system works 24/7 regardless of whether your laptop is on, asleep, or even in the room** — the same as any normal website.
 
-- Public URL: `https://scholarshiphive-backend-production-b17d.up.railway.app`
+- Public URL: `https://scholarshiphive-backend-production-526c0ddb.up.railway.app`
 - Project dashboard: `https://railway.com/project/360d30df-f853-454c-b103-202dc250b424`
 - Database: a managed Postgres instance in the same Railway project (not the local Postgres that used to run on this laptop during early development — that one is no longer used by the live app).
 

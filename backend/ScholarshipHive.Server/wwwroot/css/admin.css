@@ -31,7 +31,7 @@ a{color:var(--acc)}
 .auth-card p.subtitle{color:var(--mute);margin-bottom:24px;font-size:14px;line-height:1.5}
 
 /* ── shell ── */
-.app-shell{display:flex;min-height:100vh}
+.app-shell{display:flex;min-height:100vh;min-width:0}
 .sidebar{width:212px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);
   padding:16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .brand{display:flex;align-items:center;gap:9px;margin-bottom:22px;padding:0 3px}
@@ -50,9 +50,12 @@ a{color:var(--acc)}
 .routerbox b{display:block;font-size:12px;color:var(--ok);margin-bottom:4px}
 .routerbox p{margin:0;font-size:11.5px;color:var(--mute);line-height:1.5}
 
-.main-content{flex:1;min-width:0;max-width:100%;overflow-x:auto;padding:0}
+.main-content{flex:1;min-width:0;max-width:100%;overflow-x:hidden;padding:0}
 .top{display:flex;align-items:center;gap:11px;padding:11px 22px;background:var(--surface);
   border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.menu-toggle{display:none;align-items:center;justify-content:center;flex-direction:column;gap:4px;width:36px;height:36px;flex:0 0 36px;border:1px solid var(--line);border-radius:var(--rSm);background:var(--surface);cursor:pointer}
+.menu-toggle span{display:block;width:16px;height:2px;border-radius:2px;background:var(--ink)}
+.sidebar-backdrop{display:none}
 .search{position:relative;flex:1;max-width:320px;margin:0}
 .search input{width:100%;padding:8px 12px 8px 32px;border-radius:var(--rSm);border:1px solid var(--line);
   background:var(--bg);font:400 12.5px var(--fb);color:var(--ink);outline:none}
@@ -175,7 +178,14 @@ a{color:var(--acc)}
 .alert-success{background:var(--okSoft);border-color:#bdeed9;color:var(--ok);border-radius:var(--rSm)}
 
 @media(max-width:900px){
-  .sidebar{display:none}
+  .menu-toggle{display:flex}
+  .sidebar{display:flex;position:fixed;z-index:21;inset:0 auto 0 0;width:min(300px,86vw);height:100dvh;padding:16px;overflow-y:auto;box-shadow:12px 0 36px rgba(6,32,38,.15);transform:translateX(-105%);transition:transform .22s ease}
+  .sidebar.is-open{transform:translateX(0)}
+  .sidebar-backdrop:not([hidden]){display:block;position:fixed;inset:0;z-index:20;background:rgba(6,32,38,.42)}
+  body.sidebar-open{overflow:hidden}
+  .sidebar .side-nav{flex:1;overflow-y:auto}
+  .top{padding:10px 14px;gap:9px}
+  .view-body{padding:18px 16px 32px}
 }
 @keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .up{animation:up .42s cubic-bezier(.2,.8,.3,1) both}
@@ -186,3 +196,44 @@ a{color:var(--acc)}
 .sidebar{overflow:hidden;}
 .sidebar .side-nav .side-link svg{width:17px;height:17px;flex-shrink:0;}
 @media(max-height:620px) and (min-width:901px){.sidebar{padding-top:10px;padding-bottom:8px}.brand{margin-bottom:10px}.side-link{padding-top:7px;padding-bottom:7px}.routerbox{padding:9px;margin-bottom:7px}}
+
+/* Keep content within the viewport while preserving all data and actions. */
+img,svg,video,canvas{max-width:100%}
+.view-body,.sh-card,.card,.row>[class*="col"],.g2,.g3,.g4,.stat-grid{min-width:0}
+.view-body{overflow-wrap:anywhere}
+.table-responsive{max-width:100%;-webkit-overflow-scrolling:touch}
+.table-responsive>.table{white-space:nowrap}
+.modal-dialog{max-width:calc(100vw - 24px);margin:12px auto}
+.modal-body{max-height:calc(100dvh - 170px);overflow-y:auto}
+.form-control,.form-select,textarea{max-width:100%;min-width:0}
+.chat-form #chat-input{min-width:0;flex:1}
+canvas{max-width:100%}
+@media(max-width:600px){
+  .view-body{padding:15px 12px 28px}
+  .top{padding:9px 10px;gap:7px}
+  .search{min-width:0;max-width:none}
+  .search input{font-size:12px;padding-right:8px}
+  .tright{gap:6px}
+  .tright .mono{display:none}
+  .me{padding-right:5px;background:transparent}
+  .me b{display:none}
+  .page-header{align-items:flex-start}
+  .page-header h2{font-size:20px}
+  .page-header>div:last-child{max-width:100%}
+  .g2,.g3,.g4,.stat-grid,.team-grid{grid-template-columns:minmax(0,1fr)}
+  .sh-card{padding:11px}
+  .btn{max-width:100%;white-space:normal}
+  .page-header .btn,.page-header form{max-width:100%}
+  .page-header form{flex-wrap:wrap}
+  .form-control,.form-select{font-size:16px}
+  .chat-form{align-items:stretch}
+  .chat-form #chat-send{flex:0 0 auto}
+  .cal{gap:3px}
+  .day{font-size:10px}
+}
+@media(max-width:360px){
+  .view-body{padding-right:9px;padding-left:9px}
+  .top{padding-right:8px;padding-left:8px}
+  .iconbtn{width:29px;height:29px}
+}
+@media(prefers-reduced-motion:reduce){.sidebar{transition:none}}

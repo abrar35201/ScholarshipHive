@@ -13,14 +13,14 @@
 @if (!configured)
 {
     <div class="sh-card">
-        <p class="mb-0 text-muted">The AI Assistant isn't set up yet — an administrator needs to add a Gemini API key first.</p>
+        <p class="mb-0 text-muted">Gemini is not configured. Set <code>Gemini:ApiKey</code> in backend configuration (Railway: <code>Gemini__ApiKey</code>).</p>
     </div>
 }
 else
 {
     <div class="sh-card" style="max-width:720px;">
         <div id="chat-log" style="min-height:320px; max-height:520px; overflow-y:auto; margin-bottom:16px;"></div>
-        <form id="chat-form" class="d-flex gap-2">
+        <form id="chat-form" class="chat-form d-flex gap-2">
             @Html.AntiForgeryToken()
             <input id="chat-input" type="text" class="form-control" placeholder="e.g. ghulam ka pichlay hafte ka attendance kaisa raha?" autocomplete="off" />
             <button type="submit" class="btn btn-primary" id="chat-send">Ask</button>

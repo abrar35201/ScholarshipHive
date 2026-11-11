@@ -28,7 +28,8 @@ class ChatService {
         if (scopedUserId != null) 'scopedUserId': scopedUserId,
         'history': history.map((h) => h.toJson()).toList(),
       },
-      receiveTimeout: const Duration(seconds: 60),
+      // Up to six Gemini tool rounds may be needed for a multi-part question.
+      receiveTimeout: const Duration(minutes: 5),
     );
     return result['reply'] as String? ?? "Sorry, I couldn't come up with an answer.";
   }

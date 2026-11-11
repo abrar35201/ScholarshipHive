@@ -24,7 +24,7 @@ class ApiConfig {
     'API_SERVER_URL',
     defaultValue: kIsWeb && kDebugMode
         ? 'http://localhost:5080'
-        : 'https://scholarshiphive-backend-production-b17d.up.railway.app',
+        : 'https://scholarshiphive-backend-production-526c0ddb.up.railway.app',
   );
 
   /// Local Chrome development uses a dev-only admin login path because browser
