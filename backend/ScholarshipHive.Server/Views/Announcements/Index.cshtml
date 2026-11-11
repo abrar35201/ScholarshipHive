@@ -1,0 +1,26 @@
+@model List<ScholarshipHive.Server.Models.Announcement>
+@using ScholarshipHive.Server.Models
+@{ ViewData["Title"] = "Announcements"; bool can = (bool)(ViewBag.CanPublish ?? false);
+   EmployeeDepartment? scope = (EmployeeDepartment?)ViewBag.Scope;
+   bool owner = (bool)(ViewBag.CanDeleteAny ?? false);
+   int currentId = (int)(ViewBag.CurrentId ?? 0); }
+<div class="page-header"><div><h2>Announcements</h2><p>Important notices delivered to the intended teams.</p></div></div>
+@if(can){<div class="sh-card p-3 mb-3"><h5>Publish announcement</h5>
+<form action="/Announcements/Save" method="post" class="row g-2">@Html.AntiForgeryToken()<input name="id" value="0" type="hidden"/>
+<div class="col-md-6"><label class="form-label">Title</label><input name="title" class="form-control" maxlength="160" required/></div>
+<div class="col-md-6"><label class="form-label">Audience</label><select name="department" class="form-select" @(scope.HasValue && scope != EmployeeDepartment.MarketingAndInterns ? "disabled" : null)>
+@if(!scope.HasValue){<option value="">All employees</option>}
+@foreach(var d in Enum.GetValues<EmployeeDepartment>()){if(d != EmployeeDepartment.MarketingAndInterns && (!scope.HasValue || scope==d || (scope==EmployeeDepartment.MarketingAndInterns && (d==EmployeeDepartment.Marketing || d==EmployeeDepartment.Interns)))){<option value="@d">@(d==EmployeeDepartment.Calling?"Counselors":d.ToString())</option>}}
+</select></div>
+<div class="col-12"><textarea class="form-control" name="body" rows="3" maxlength="3000" placeholder="Important message" required></textarea></div>
+<div class="col-12"><button class="btn btn-primary" type="submit">Publish announcement</button></div></form></div>}
+@foreach(var a in Model){<div class="sh-card p-3 mb-3"><div class="d-flex justify-content-between flex-wrap gap-2"><h5>@a.Title</h5><small>@a.CreatedAt.ToLocalTime()</small></div>
+<p style="white-space:pre-wrap">@a.Body</p><small>@(a.Department?.ToString() ?? "Everyone") · by @(a.LastEditedByUser?.FullName ?? a.Author?.FullName ?? "Management") (@(AccessRules.DisplayRole(a.LastEditedByUser?.Role ?? a.Author?.Role ?? UserRole.Employee)))
+@if(a.LastEditedByUserId.HasValue){<span> · edited, originally by @(a.Author?.FullName ?? "Management")</span>}</small>
+@if(can && (owner || a.AuthorId==currentId)){<details class="mt-2"><summary>Edit / remove</summary>
+<form action="/Announcements/Save" method="post" class="my-2">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@a.Id"/>
+<input class="form-control mb-2" name="title" maxlength="160" value="@a.Title" required/><textarea name="body" class="form-control mb-2" rows="3" required>@a.Body</textarea>
+<select name="department" class="form-select mb-2" @(scope.HasValue && scope != EmployeeDepartment.MarketingAndInterns ? "disabled" : null)>@if(!scope.HasValue){<option value="">Everyone</option>}
+@foreach(var d in Enum.GetValues<EmployeeDepartment>()){if(d != EmployeeDepartment.MarketingAndInterns && (!scope.HasValue || scope==d || (scope==EmployeeDepartment.MarketingAndInterns && (d==EmployeeDepartment.Marketing || d==EmployeeDepartment.Interns)))){<option value="@d" selected="@(a.Department==d)">@d</option>}}</select><button class="btn btn-outline-primary">Save</button></form>
+<form action="/Announcements/Delete" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@a.Id"/><button class="btn btn-outline-danger">Delete</button></form></details>}</div>}
+@if(Model.Count==0){<p class="text-muted">No announcements yet.</p>}

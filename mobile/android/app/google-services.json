@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "118161277395",
+    "project_id": "scholarshiphive-30972",
+    "storage_bucket": "scholarshiphive-30972.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118161277395:android:367bd375d55232481a2f26",
+        "android_client_info": {
+          "package_name": "com.scholarshiphive.scholarshiphive"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBd-gR3JMqa5nsl0dpC_naoP-SBgntEPZ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

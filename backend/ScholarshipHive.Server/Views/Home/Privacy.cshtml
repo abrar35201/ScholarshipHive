@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "Privacy Policy";
+    var today = DateTimeExtensions.PakistanToday().ToString("MMMM d, yyyy");
+}
+<div style="max-width:760px;margin:0 auto;padding:48px 24px 80px;font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#0f2220;line-height:1.65">
+    <h1 style="font-size:28px;font-weight:800;margin-bottom:4px">ScholarshipHive Privacy Policy</h1>
+    <p style="color:#5c7a75;font-size:13.5px;margin-top:0">Last updated @today</p>
+
+    <p>ScholarshipHive is an internal workforce attendance and reporting app used by our own employees. This
+    page explains what information the app collects, why, and who can see it. It applies to both the mobile
+    app and this web admin panel.</p>
+
+    <h2 style="font-size:19px;margin-top:36px">Information we collect</h2>
+    <ul>
+        <li><b>Account details</b> — your name, username, department, and role.</li>
+        <li><b>Location</b> — precise location, including in the background while the app isn't open, used
+            only to confirm you're physically at an approved office location when you check in or out. This is
+            the core of how attendance is verified, so it isn't optional while you're using the app for work.</li>
+        <li><b>Wi-Fi network identifiers</b> — the network your device is connected to, used as a second check
+            alongside location to confirm office presence.</li>
+        <li><b>A device identifier</b> — a random ID generated when the app is installed (not tied to your
+            phone's hardware), used to recognize your own device for security features like the password-reset
+            request and shared-device handling.</li>
+        <li><b>Attendance records</b> — check-in and check-out times, generated automatically as you arrive and
+            leave.</li>
+        <li><b>Shift reports</b> — whatever you enter into your daily report (call/lead counts, notes, and any
+            files you choose to attach).</li>
+        <li><b>Push notification token</b> — used to deliver notifications to your device (for example, a
+            password-reset confirmation), issued by Firebase Cloud Messaging.</li>
+        <li><b>Fingerprint/biometric unlock</b> — if you turn this on, your fingerprint is verified entirely by
+            your phone's own operating system. We never receive, see, or store your biometric data — the app
+            only receives a yes/no "unlocked" result from your device.</li>
+    </ul>
+
+    <h2 style="font-size:19px;margin-top:36px">How this information is used</h2>
+    <p>Everything above is used strictly for workforce management: recording attendance accurately, letting your
+    manager review shift reports, and operating account-security features like device-verified password resets.
+    We do not use this data for advertising, and we do not sell or share it with any third party outside the
+    organization.</p>
+
+    <h2 style="font-size:19px;margin-top:36px">Who can see your data</h2>
+    <p>Only Admins and Auditors within your own organization can view attendance records, reports, and location
+    status — and only through their own authenticated login. Other employees cannot see your data.</p>
+
+    <h2 style="font-size:19px;margin-top:36px">How long we keep it</h2>
+    <p>Attendance and report records are kept for as long as your account exists, as part of standard employment
+    recordkeeping. You can ask an admin to review or remove your account at any time.</p>
+
+    <h2 style="font-size:19px;margin-top:36px">Security</h2>
+    <p>Data is sent over encrypted (HTTPS) connections. Passwords are never stored in readable form. Your login
+    session on your phone is kept in your device's own encrypted secure storage, not in a plain file.</p>
+
+    <h2 style="font-size:19px;margin-top:36px">Your choices</h2>
+    <p>Location and notification permissions can be changed at any time from your device's Settings app —
+    though since location is how attendance is verified, turning it off will prevent check-in/check-out from
+    working correctly while you're using the app for work.</p>
+
+    <h2 style="font-size:19px;margin-top:36px">Contact</h2>
+    <p>Questions about this policy or your data can be sent to
+        <a href="mailto:gmghulamgmghulam@gmail.com">gmghulamgmghulam@gmail.com</a>.</p>
+</div>

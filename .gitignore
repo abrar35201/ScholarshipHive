@@ -1,0 +1,69 @@
+# .NET
+backend/**/bin/
+backend/**/obj/
+backend/ScholarshipHive.Server/ScholarshipHive.dev.db*
+*.user
+
+# Flutter
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/**/*.iml
+
+# Local tooling / editor state
+.claude/
+.vs/
+.idea/
+
+# Secrets — never committed; connection strings and JWT keys live in
+# `dotnet user-secrets` locally and in Railway/Render environment variables.
+appsettings.*.local.json
+
+# PostgreSQL / legacy sensitive data and local credentials
+LEGACY_SQLITE_BACKUP/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.local
+
+# Secrets
+.env
+.env.*
+!.env.example
+**/secrets.json
+**/appsettings.*.local.json
+
+# Legacy SQLite databases
+LEGACY_SQLITE_BACKUP/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# .NET
+**/bin/
+**/obj/
+**/publish/
+
+# Flutter
+**/build/
+**/.dart_tool/
+**/.flutter-plugins*
+**/android/local.properties
+**/android/key.properties
+*.jks
+*.keystore
+
+# IDE and logs
+.vs/
+.idea/
+*.user
+*.log
+*.bak
+migration_preview.sql

@@ -1,0 +1,110 @@
+@model List<User>
+@{
+    ViewData["Title"] = "Shifts";
+    EmployeeDepartment? selectedDepartment = ViewBag.SelectedDepartment;
+    var byDept = Model.GroupBy(u => u.Department).ToDictionary(g => g.Key, g => g.ToList());
+}
+
+<div class="page-header">
+    <div>
+        <h2>Shifts</h2>
+        <p>Set when each employee's day starts — lateness is judged against their own shift start time (plus a 15-minute grace), not one fixed cutoff for everyone.</p>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="sect"><div><h3>Apply to a whole department</h3><p>Sets every active employee in that department at once</p></div></div>
+    <form asp-action="SetBulk" method="post" class="pad" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+        @Html.AntiForgeryToken()
+        <div>
+            <label class="form-label" style="display:block;font-size:12px;color:var(--mute);margin-bottom:4px">Department</label>
+            <select name="Department" class="form-select" style="min-width:160px">
+                @foreach (var dept in new[] { EmployeeDepartment.Calling, EmployeeDepartment.Processing, EmployeeDepartment.Others, EmployeeDepartment.Interns })
+                {
+                    <option value="@dept" selected="@(selectedDepartment == dept)">@dept</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="display:block;font-size:12px;color:var(--mute);margin-bottom:4px">Shift type</label>
+            <select name="ShiftType" class="form-select">
+                <option value="@ShiftType.Day">Day shift</option>
+                <option value="@ShiftType.Night">Night shift</option>
+                <option value="@ShiftType.Internship">Internship</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="display:block;font-size:12px;color:var(--mute);margin-bottom:4px">Start time</label>
+            <input type="time" name="ShiftStartTime" value="09:30" class="form-control" required />
+        </div>
+        <div>
+            <label class="form-label" style="display:block;font-size:12px;color:var(--mute);margin-bottom:4px">End time</label>
+            <input type="time" name="ShiftEndTime" value="17:30" class="form-control" required />
+        </div>
+        <button type="submit" class="btn btn-primary">Apply to department</button>
+    </form>
+</div>
+
+@* Standalone (not wrapping the list below) — each row's checkbox joins this
+   form via the HTML5 form="" attribute instead of DOM nesting, since a
+   <form> can't contain another <form> and each row also needs its OWN
+   individual Save mini-form. *@
+<form asp-action="SetBulk" method="post" id="bulk-selected-form"
+      onsubmit="if(!document.querySelectorAll('input[name=UserIds]:checked').length){alert('Select at least one employee first.');return false;}">
+    @Html.AntiForgeryToken()
+</form>
+
+<div class="card mb-3">
+    <div class="sect"><div><h3>Apply to selected employees</h3><p>Check any employees below, set a shift, then apply — works across departments</p></div></div>
+    <div class="pad" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;border-bottom:1px solid var(--line)">
+        <div>
+            <label class="form-label" style="display:block;font-size:12px;color:var(--mute);margin-bottom:4px">Shift type</label>
+            <select name="ShiftType" form="bulk-selected-form" class="form-select">
+                <option value="@ShiftType.Day">Day shift</option>
+                <option value="@ShiftType.Night">Night shift</option>
+                <option value="@ShiftType.Internship">Internship</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label" style="display:block;font-size:12px;color:var(--mute);margin-bottom:4px">Start time</label>
+            <input type="time" name="ShiftStartTime" form="bulk-selected-form" value="09:30" class="form-control" required />
+        </div>
+        <div>
+            <label class="form-label" style="display:block;font-size:12px;color:var(--mute);margin-bottom:4px">End time</label>
+            <input type="time" name="ShiftEndTime" form="bulk-selected-form" value="17:30" class="form-control" required />
+        </div>
+        <button type="submit" form="bulk-selected-form" class="btn btn-primary">Apply to checked</button>
+    </div>
+
+    @foreach (var (dept, members) in byDept)
+    {
+        <div class="sect" style="border-bottom:1px solid var(--line)"><b>@dept</b></div>
+        @foreach (var u in members)
+        {
+            <div class="list-row">
+                <input type="checkbox" name="UserIds" form="bulk-selected-form" value="@u.Id" style="width:16px;height:16px" />
+                <div class="grow">
+                    <p class="nm">@(u.FullName?.Length > 0 ? u.FullName : u.Username)</p>
+                    <p class="rl">@u.ShiftType shift · @u.ShiftStartTime.ToString("hh:mm tt") – @u.ShiftEndTime.ToString("hh:mm tt")</p>
+                </div>
+
+                <form asp-action="SetForUser" method="post" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="userId" value="@u.Id" />
+                    <select name="shiftType" class="form-select form-select-sm" style="width:auto">
+                        <option value="@ShiftType.Day" selected="@(u.ShiftType == ShiftType.Day)">Day</option>
+                        <option value="@ShiftType.Night" selected="@(u.ShiftType == ShiftType.Night)">Night</option>
+                        <option value="@ShiftType.Internship" selected="@(u.ShiftType == ShiftType.Internship)">Internship</option>
+                    </select>
+                    <input type="time" name="shiftStartTime" value="@u.ShiftStartTime.ToString("HH:mm")" class="form-control form-control-sm" style="width:auto" required />
+                    <input type="time" name="shiftEndTime" value="@u.ShiftEndTime.ToString("HH:mm")" class="form-control form-control-sm" style="width:auto" required />
+                    <button type="submit" class="btn ghost" style="padding:6px 12px;font-size:12px">Save</button>
+                </form>
+            </div>
+        }
+    }
+    @if (!Model.Any())
+    {
+        <p class="text-center text-muted py-4 mb-0">No employees yet.</p>
+    }
+</div>

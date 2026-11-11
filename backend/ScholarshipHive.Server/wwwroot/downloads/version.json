@@ -1,0 +1,5 @@
+{
+  "versionCode": 47,
+  "versionName": "1.0.46",
+  "notes": "Fixed push notifications so background auto check-in can recover on its own if it's ever missed. Forgot-password requests now always reach an admin, even from an unrecognized device. Corrected Day/Night shift hours (9:30 AM-5:30 PM / 6:00 PM-2:00 AM) and fixed several dashboard/analytics numbers that were wrong for new hires and Night-shift staff. Saturday is now a working day for everyone except Interns. Faster app open and background check-in."
+}

@@ -1,0 +1,230 @@
+@model List<Attendance>
+@{
+    ViewData["Title"] = "Attendance";
+    var users = (List<User>)ViewBag.Users;
+    int? selectedUserId = ViewBag.SelectedUserId;
+    string? selectedDate = ViewBag.SelectedDate;
+    string? selectedFromDate = ViewBag.SelectedFromDate;
+    string? selectedToDate = ViewBag.SelectedToDate;
+    EmployeeDepartment? selectedDepartment = ViewBag.SelectedDepartment;
+    var statusTag = new Dictionary<string, (string bg, string c, string t)> {
+        ["OnFloor"] = ("var(--okSoft)", "var(--ok)", "On floor"),
+        ["CheckedOut"] = ("var(--accSoft)", "var(--accDeep)", "Checked out"),
+        ["Late"] = ("var(--warnSoft)", "var(--warn)", "Late"),
+        ["Absent"] = ("var(--badSoft)", "var(--bad)", "Absent"),
+        ["Off"] = ("var(--line)", "var(--mute)", "Off"),
+    };
+}
+
+<div class="page-header">
+    <div>
+        <h2>Attendance</h2>
+        <p>Every check-in verified against an approved office network.</p>
+    </div>
+    @if (selectedUserId == null)
+    {
+        DateOnly exportDate = ViewBag.SelectedDateOnly;
+        <div class="dropdown">
+            <a class="btn btn-outline-secondary" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Export sheet</a>
+            <div class="dropdown-menu dropdown-menu-end">
+                <a class="dropdown-item" asp-action="ExportExcel" asp-route-date="@exportDate.ToString("yyyy-MM-dd")" asp-route-department="@selectedDepartment">Export All in One Excel</a>
+                <a class="dropdown-item" asp-action="ExportEmployeeExcelsZip" asp-route-date="@exportDate.ToString("yyyy-MM-dd")" asp-route-department="@selectedDepartment">Export Separate Employee Excels (ZIP)</a>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="sh-card mb-3" style="padding: 8px;">
+    <div class="d-flex gap-2" style="overflow-x: auto;">
+        <a class="btn btn-sm @(selectedDepartment == null ? "btn-primary" : "btn-outline-secondary")"
+           asp-action="Index" asp-route-date="@selectedDate">All</a>
+        @foreach (var dept in new[] { EmployeeDepartment.Calling, EmployeeDepartment.Processing, EmployeeDepartment.Others, EmployeeDepartment.Interns })
+        {
+            <a class="btn btn-sm @(selectedDepartment == dept ? "btn-primary" : "btn-outline-secondary")"
+               asp-action="Index" asp-route-department="@dept" asp-route-date="@selectedDate">@dept</a>
+        }
+    </div>
+</div>
+
+<div class="sh-card mb-3">
+    <form method="get" class="row g-3 align-items-end">
+        <input type="hidden" name="department" value="@selectedDepartment" />
+        <div class="col-auto">
+            <label class="form-label">Jump to a person's calendar</label>
+            <select name="userId" class="form-select" onchange="this.form.submit()">
+                <option value="">Office-wide</option>
+                @foreach (var u in users)
+                {
+                    <option value="@u.Id" selected="@(selectedUserId == u.Id)">@(u.FullName?.Length > 0 ? u.FullName : u.Username)</option>
+                }
+            </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Date</label>
+            <input type="date" name="date" value="@selectedDate" class="form-control" />
+        </div>
+        @if (selectedUserId.HasValue)
+        {
+            <div class="col-auto">
+                <label class="form-label">From (full range)</label>
+                <input type="date" name="fromDate" value="@selectedFromDate" class="form-control" />
+            </div>
+            <div class="col-auto">
+                <label class="form-label">To</label>
+                <input type="date" name="toDate" value="@selectedToDate" class="form-control" />
+            </div>
+        }
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+        </div>
+    </form>
+    @if (selectedUserId.HasValue)
+    {
+        <p class="form-text mt-2 mb-0">Set From/To to see this person's complete attendance across any date range — overrides the single Date/calendar-day filter above.</p>
+    }
+</div>
+
+<div id="live-region">
+@if (selectedUserId.HasValue)
+{
+    var calendar = (List<CalendarDay>)ViewBag.Calendar;
+    string monthLabel = ViewBag.CalendarMonthLabel;
+    var statusColor = new Dictionary<string, string> {
+        ["present"] = "#059669", ["late"] = "#D97706", ["absent"] = "#DC2626", ["extra"] = "#7C3AED",
+        ["weekend"] = "transparent", ["future"] = "transparent",
+    };
+    var calStatusTag = new Dictionary<string, (string bg, string c, string t)> {
+        ["present"] = ("var(--okSoft)", "var(--ok)", "On time"),
+        ["late"] = ("var(--warnSoft)", "var(--warn)", "Late"),
+        ["absent"] = ("var(--badSoft)", "var(--bad)", "Absent"),
+        ["extra"] = ("#EDE9FE", "#7C3AED", "Extra time"),
+    };
+    <div class="grid" style="grid-template-columns:minmax(280px,1fr) minmax(300px,1.4fr)">
+        <div class="card">
+            <div class="sect"><div><h3>@monthLabel</h3><p>Weekends counted as off, not absent — unless they still checked in</p></div></div>
+            <div class="pad">
+                <div class="cal">
+                    @foreach (var d in new[] { "M", "T", "W", "T", "F", "S", "S" }) { <span class="dow">@d</span> }
+                    @{ var leading = ((int)calendar[0].Date.DayOfWeek + 6) % 7; }
+                    @for (var i = 0; i < leading; i++) { <span></span> }
+                    @foreach (var c in calendar)
+                    {
+                        var dead = c.Status == "weekend" || c.Status == "future";
+                        <a class="day @(dead ? "off" : "") @(c.Date.ToString("yyyy-MM-dd") == selectedDate ? "on" : "")"
+                           href="?userId=@selectedUserId&date=@c.Date.ToString("yyyy-MM-dd")" style="text-decoration:none">
+                            @c.Day
+                            <i style="background:@statusColor[c.Status]"></i>
+                        </a>
+                    }
+                </div>
+                <div class="grid g2 mt" style="gap:6px">
+                    @foreach (var (label, color) in new[] { ("On time", "#059669"), ("Late", "#D97706"), ("Absent", "#DC2626"), ("Extra time", "#7C3AED") })
+                    {
+                        var n = calendar.Count(c => c.Status == (label == "On time" ? "present" : label == "Late" ? "late" : label == "Extra time" ? "extra" : "absent"));
+                        <div class="legend-row"><i class="legend-dot" style="background:@color"></i>
+                            <span style="font-size:12px;color:var(--mute)">@label</span>
+                            <b class="mono" style="margin-left:auto;font-size:12.5px;color:@color">@n</b></div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="sect"><div><h3>Log</h3><p>@Model.Count record@(Model.Count == 1 ? "" : "s")@((selectedFromDate != null || selectedToDate != null) ? $" · {selectedFromDate ?? "earliest"} to {selectedToDate ?? "latest"}" : "")</p></div></div>
+            @foreach (var a in Model)
+            {
+                <div class="list-row">
+                    <span class="av">@(string.Concat((a.User?.FullName ?? a.User?.Username ?? "?").Split(' ').Where(w => w.Length > 0).Select(w => w[0])).ToUpper())</span>
+                    <div class="grow"><p class="nm">@(a.User?.FullName?.Length > 0 ? a.User.FullName : a.User?.Username)</p><p class="rl">@a.Date.ToString("yyyy-MM-dd")</p></div>
+                    <span class="tnum" style="width:70px">@a.CheckInTime.ToPakistanTime().ToString("hh:mm tt")</span>
+                    <span class="tnum" style="width:70px">@(a.CheckOutTime?.ToPakistanTime().ToString("hh:mm tt") ?? "—")</span>
+                    @if (a.ReportSubmitted)
+                    {
+                        <span class="tag" style="background:var(--okSoft);color:var(--ok)">Submitted</span>
+                    }
+                    else
+                    {
+                        <span class="tag" style="background:var(--badSoft);color:var(--bad)">Pending</span>
+                    }
+                </div>
+            }
+            @if (!Model.Any())
+            {
+                <p class="text-center text-muted py-4 mb-0">No attendance records for this @((selectedFromDate != null || selectedToDate != null) ? "range" : "day").</p>
+            }
+        </div>
+    </div>
+}
+else
+{
+    var officeCalendar = (List<CalendarDay>)ViewBag.OfficeCalendar;
+    string officeMonthLabel = ViewBag.OfficeMonthLabel;
+    DateOnly selectedDateOnly = ViewBag.SelectedDateOnly;
+    var dayRoster = (List<AttendanceRosterRow>)ViewBag.DayRoster;
+    int activeEmployeeCount = ViewBag.ActiveEmployeeCount;
+    var officeColor = new Dictionary<string, string> {
+        ["present"] = "#059669", ["late"] = "#D97706", ["absent"] = "#DC2626", ["extra"] = "#7C3AED",
+        ["weekend"] = "transparent", ["future"] = "transparent",
+    };
+    var prevMonth = officeCalendar[0].Date.AddMonths(-1);
+    var nextMonth = officeCalendar[0].Date.AddMonths(1);
+    <div class="grid" style="grid-template-columns:minmax(280px,1fr) minmax(300px,1.4fr)">
+        <div class="card">
+            <div class="sect">
+                <div><h3>@officeMonthLabel</h3><p>Tap a day to see its log</p></div>
+                <div style="margin-left:auto;display:flex;gap:4px">
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Index" asp-route-department="@selectedDepartment" asp-route-date="@prevMonth.ToString("yyyy-MM-dd")">‹</a>
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Index" asp-route-department="@selectedDepartment" asp-route-date="@nextMonth.ToString("yyyy-MM-dd")">›</a>
+                </div>
+            </div>
+            <div class="pad">
+                <div class="cal">
+                    @foreach (var d in new[] { "M", "T", "W", "T", "F", "S", "S" }) { <span class="dow">@d</span> }
+                    @{ var leading = ((int)officeCalendar[0].Date.DayOfWeek + 6) % 7; }
+                    @for (var i = 0; i < leading; i++) { <span></span> }
+                    @foreach (var c in officeCalendar)
+                    {
+                        var dead = c.Status == "weekend" || c.Status == "future";
+                        <a class="day @(dead ? "off" : "") @(c.Date == selectedDateOnly ? "on" : "")"
+                           href="?department=@selectedDepartment&date=@c.Date.ToString("yyyy-MM-dd")" style="text-decoration:none">
+                            @c.Day
+                            <i style="background:@officeColor[c.Status]"></i>
+                        </a>
+                    }
+                </div>
+                <div class="grid g2 mt" style="gap:6px">
+                    @foreach (var (label, color) in new[] { ("Present", "#059669"), ("Late", "#D97706"), ("Absent", "#DC2626"), ("Extra time", "#7C3AED") })
+                    {
+                        var n = officeCalendar.Count(c => c.Status == (label == "Present" ? "present" : label == "Late" ? "late" : label == "Extra time" ? "extra" : "absent"));
+                        <div class="legend-row"><i class="legend-dot" style="background:@color"></i>
+                            <span style="font-size:12px;color:var(--mute)">@label</span>
+                            <b class="mono" style="margin-left:auto;font-size:12.5px;color:@color">@n</b></div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="sect">
+                <div><h3>Log · @selectedDateOnly.ToString("d MMMM")</h3><p>@activeEmployeeCount people scheduled</p></div>
+                <span class="tag" style="margin-left:auto;background:var(--okSoft);color:var(--ok)">Office network</span>
+            </div>
+            @foreach (var r in dayRoster)
+            {
+                var (bg, fg, label) = statusTag[r.Status];
+                <a class="list-row" style="text-decoration:none;color:inherit;cursor:pointer" asp-controller="Users" asp-action="Details" asp-route-id="@r.UserId">
+                    <span class="av">@(string.Concat(r.Name.Split(' ').Where(w => w.Length > 0).Select(w => w[0])).ToUpper())</span>
+                    <div class="grow"><p class="nm">@r.Name</p><p class="rl">@r.Department</p></div>
+                    <span class="tnum" style="width:56px">@(r.CheckInLabel ?? "—")</span>
+                    <span class="tnum" style="width:56px">@(r.CheckOutLabel ?? "—")</span>
+                    <span class="tnum" style="width:56px">@(r.DurationLabel ?? "—")</span>
+                    <span class="tag" style="background:@bg;color:@fg">@label</span>
+                </a>
+            }
+            @if (!dayRoster.Any())
+            {
+                <p class="text-center text-muted py-4 mb-0">No one scheduled for this day.</p>
+            }
+        </div>
+    </div>
+}
+</div>

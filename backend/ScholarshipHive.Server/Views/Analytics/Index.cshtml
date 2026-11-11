@@ -1,0 +1,81 @@
+@using ScholarshipHive.Server.Services
+@model AnalyticsData
+@{
+    ViewData["Title"] = "Analytics";
+}
+
+<div class="page-header">
+    <div>
+        <h2>Analytics</h2>
+        <p>Patterns worth acting on, computed from the last 30 days</p>
+    </div>
+</div>
+
+<div id="live-region">
+<div class="grid g2">
+    <div class="card">
+        <div class="sect"><div><h3>Status split</h3><p>All recorded shifts, last 30 days</p></div></div>
+        <div class="pad" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+            @Html.Raw(ChartSvg.Donut(new List<DonutSegment> {
+                new(Model.Status.Present, "#059669"),
+                new(Model.Status.Late, "#D97706"),
+                new(Model.Status.Absent, "#DC2626"),
+            }, 150, Model.Status.PresentPct + "%", "present"))
+            <div style="flex:1;min-width:130px;display:flex;flex-direction:column;gap:5px">
+                <div class="legend-row"><i class="legend-dot" style="background:#059669"></i>
+                    <span style="font-size:12px;color:var(--mute)">Present</span>
+                    <b class="mono" style="margin-left:auto;font-size:12px;color:#059669">@Model.Status.PresentPct%</b></div>
+                <div class="legend-row"><i class="legend-dot" style="background:#D97706"></i>
+                    <span style="font-size:12px;color:var(--mute)">Late</span>
+                    <b class="mono" style="margin-left:auto;font-size:12px;color:#D97706">@Model.Status.LatePct%</b></div>
+                <div class="legend-row"><i class="legend-dot" style="background:#DC2626"></i>
+                    <span style="font-size:12px;color:var(--mute)">Absent</span>
+                    <b class="mono" style="margin-left:auto;font-size:12px;color:#DC2626">@Model.Status.AbsentPct%</b></div>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="sect"><div><h3>Department health</h3><p>Attendance rate against reports filed, last 30 days</p></div></div>
+        <div class="pad">
+            @foreach (var d in Model.DepartmentHealth.OrderByDescending(x => x.RatePct))
+            {
+                <div style="margin-bottom:13px">
+                    <div style="display:flex;align-items:baseline;margin-bottom:5px">
+                        <span style="font-size:12.5px;font-weight:500">@d.Department</span>
+                        <span class="mono" style="margin-left:auto;font-size:11.5px;color:var(--mute)">@d.ReportsLast30d reports</span>
+                        <b class="mono" style="margin-left:10px;font-size:12.5px;color:var(--accDeep)">@d.RatePct%</b>
+                    </div>
+                    <div style="height:7px;border-radius:99px;background:var(--line);overflow:hidden">
+                        <div style="width:@(d.RatePct)%;height:100%;border-radius:99px;background:var(--acc)"></div>
+                    </div>
+                </div>
+            }
+            @if (!Model.DepartmentHealth.Any())
+            {
+                <p class="text-muted small mb-0">No employees yet.</p>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card mt">
+    <div class="sect"><div><h3>What the data says</h3><p>Generated from the last 30 days of logs</p></div></div>
+    <div class="pad">
+        <div class="grid g3">
+            @foreach (var insight in Model.Insights)
+            {
+                var (bg, fg) = insight.Tone switch
+                {
+                    "alt" => ("var(--altSoft)", "var(--alt)"),
+                    "ok" => ("var(--okSoft)", "var(--ok)"),
+                    _ => ("var(--warnSoft)", "var(--warn)"),
+                };
+                <div style="background:@bg;border-radius:var(--rSm);padding:14px">
+                    <p style="margin:0 0 6px;font-weight:700;font-size:13.5px;color:@fg">@insight.Title</p>
+                    <p style="margin:0;font-size:12.5px;color:var(--ink);line-height:1.5">@insight.Body</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+</div>

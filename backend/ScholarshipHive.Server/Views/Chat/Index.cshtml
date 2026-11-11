@@ -1,0 +1,116 @@
+@{
+    ViewData["Title"] = "AI Assistant";
+    var configured = (bool)ViewBag.Configured;
+}
+
+<div class="page-header">
+    <div>
+        <h2>AI Assistant</h2>
+        <p>Ask about anyone's attendance, reports, or check-in history in plain language.</p>
+    </div>
+</div>
+
+@if (!configured)
+{
+    <div class="sh-card">
+        <p class="mb-0 text-muted">The AI Assistant isn't set up yet — an administrator needs to add a Gemini API key first.</p>
+    </div>
+}
+else
+{
+    <div class="sh-card" style="max-width:720px;">
+        <div id="chat-log" style="min-height:320px; max-height:520px; overflow-y:auto; margin-bottom:16px;"></div>
+        <form id="chat-form" class="d-flex gap-2">
+            @Html.AntiForgeryToken()
+            <input id="chat-input" type="text" class="form-control" placeholder="e.g. ghulam ka pichlay hafte ka attendance kaisa raha?" autocomplete="off" />
+            <button type="submit" class="btn btn-primary" id="chat-send">Ask</button>
+        </form>
+    </div>
+
+    @section Scripts {
+        <script>
+            (function () {
+                const log = document.getElementById('chat-log');
+                const form = document.getElementById('chat-form');
+                const input = document.getElementById('chat-input');
+                const sendBtn = document.getElementById('chat-send');
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                let history = [];
+
+                function escapeHtml(s) {
+                    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                }
+
+                // Only the small subset of markdown Gemini's replies actually use:
+                // **bold** spans and "* "/"- " bullet lines — not a general parser,
+                // just enough that replies read as formatted text instead of showing
+                // literal asterisks. The user's own typed message never goes through
+                // this (see addBubble below), only the assistant's own reply text.
+                function formatMarkdown(text) {
+                    const lines = text.split('\n').map(function (line) {
+                        var bulletMatch = /^(\*|-)\s+(.*)$/.exec(line);
+                        var content = bulletMatch ? bulletMatch[2] : line;
+                        var html = escapeHtml(content).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                        return bulletMatch ? '<div style="padding-left:4px;">&bull;&nbsp; ' + html + '</div>' : html;
+                    });
+                    return lines.join('<br>');
+                }
+
+                function addBubble(role, text) {
+                    const wrap = document.createElement('div');
+                    wrap.style.margin = '8px 0';
+                    wrap.style.textAlign = role === 'user' ? 'right' : 'left';
+                    const bubble = document.createElement('span');
+                    bubble.style.display = 'inline-block';
+                    bubble.style.padding = '8px 14px';
+                    bubble.style.borderRadius = '14px';
+                    bubble.style.maxWidth = '80%';
+                    bubble.style.background = role === 'user' ? '#0891B2' : '#ECFAFD';
+                    bubble.style.color = role === 'user' ? '#fff' : '#062026';
+                    if (role === 'user') {
+                        bubble.textContent = text;
+                    } else {
+                        bubble.innerHTML = formatMarkdown(text);
+                    }
+                    wrap.appendChild(bubble);
+                    log.appendChild(wrap);
+                    log.scrollTop = log.scrollHeight;
+                }
+
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    const message = input.value.trim();
+                    if (!message) return;
+
+                    addBubble('user', message);
+                    input.value = '';
+                    sendBtn.disabled = true;
+
+                    try {
+                        // Sent as a form body (token included as a normal
+                        // field) rather than JSON+header — Railway's edge
+                        // blocks requests carrying this token in a header.
+                        const body = new URLSearchParams();
+                        body.set('__RequestVerificationToken', token);
+                        body.set('message', message);
+                        body.set('historyJson', JSON.stringify(history));
+                        const res = await fetch('/Chat/Ask', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: body.toString()
+                        });
+                        const data = await res.json();
+                        const reply = data.reply || 'Sorry, something went wrong.';
+                        addBubble('assistant', reply);
+                        history.push({ role: 'user', content: message });
+                        history.push({ role: 'assistant', content: reply });
+                    } catch (err) {
+                        addBubble('assistant', 'Sorry, could not reach the assistant right now.');
+                    } finally {
+                        sendBtn.disabled = false;
+                    }
+                });
+            })();
+        </script>
+    }
+}

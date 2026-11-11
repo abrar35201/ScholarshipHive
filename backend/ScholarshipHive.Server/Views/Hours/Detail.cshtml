@@ -1,0 +1,80 @@
+@using ScholarshipHive.Server.Dtos
+@using ScholarshipHive.Server.Models
+@model List<HoursDayDto>
+@{
+    ViewData["Title"] = "Hours";
+    string userName = ViewBag.UserName;
+    int userId = ViewBag.UserId;
+    string fromDate = ViewBag.FromDate;
+    string toDate = ViewBag.ToDate;
+    int totalMinutes = ViewBag.TotalMinutes;
+    int totalGapMinutes = ViewBag.TotalGapMinutes;
+    var dayEvents = (Dictionary<DateOnly, List<LoginHistory>>)ViewBag.EventsByDay;
+    string Fmt(int minutes) => $"{minutes / 60}h {minutes % 60}m";
+}
+
+<div class="page-header">
+    <div>
+        <h2>@userName</h2>
+        <p>Day-by-day accumulated presence, @fromDate to @toDate</p>
+    </div>
+    <a asp-action="Index" asp-route-from="@fromDate" asp-route-to="@toDate" class="btn btn-outline-secondary">Back to Hours</a>
+</div>
+
+<div class="sh-card mb-3">
+    <form method="get" class="row g-3 align-items-end">
+        <input type="hidden" name="id" value="@userId" />
+        <div class="col-auto">
+            <label class="form-label">From</label>
+            <input type="date" name="from" value="@fromDate" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">To</label>
+            <input type="date" name="to" value="@toDate" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="sect"><div><h3>Worked: @Fmt(totalMinutes) · Gap Time: @Fmt(totalGapMinutes)</h3><p>@Model.Count days in range</p></div></div>
+    @foreach (var d in Model)
+    {
+        <div class="list-row">
+            <div class="grow">
+                <p class="nm">@d.Date.ToString("dddd, d MMM yyyy")</p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end">
+                <div class="text-end"><small class="text-muted d-block">Worked</small><span class="tag mono" style="background:@(d.Minutes > 0 ? "var(--okSoft)" : "var(--line)");color:@(d.Minutes > 0 ? "var(--ok)" : "var(--mute)")">@Fmt(d.Minutes)@(d.StillOpen ? " (ongoing)" : "")</span></div>
+                <div class="text-end"><small class="text-muted d-block">Gap Time</small><span class="tag mono" style="background:var(--line);color:var(--ink)">@Fmt(d.GapMinutes)</span></div>
+            </div>
+        </div>
+        @if (!d.StillOpen && dayEvents.TryGetValue(d.Date, out var timeline) && timeline.Count > 0)
+        {
+            <details style="margin:0 16px 12px 16px">
+                <summary style="cursor:pointer">Completed activity — @timeline.Count check-in / check-out event(s)</summary>
+                <div style="padding:8px 0">
+                    @foreach (var ev in timeline)
+                    {
+                        var pkt = ev.Timestamp.AddHours(5);
+                        <div style="padding:5px 0;border-bottom:1px solid var(--line)">
+                            <strong>@(ev.EventType == LoginHistoryEvent.CheckIn ? "In" : "Away / Out")</strong>
+                            <span class="mono">@pkt.ToString("hh:mm tt") PKT</span>
+                            <small>@(ev.Bssid ?? "Router unavailable")</small>
+                        </div>
+                    }
+                </div>
+            </details>
+        }
+        else if (d.StillOpen && dayEvents.ContainsKey(d.Date))
+        {
+            <p style="margin:0 16px 8px">Session in progress — completed day activity becomes available after check-out.</p>
+        }
+    }
+    @if (!Model.Any())
+    {
+        <p class="text-center text-muted py-4 mb-0">No presence recorded in this range.</p>
+    }
+</div>

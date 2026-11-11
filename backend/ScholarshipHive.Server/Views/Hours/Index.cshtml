@@ -1,0 +1,66 @@
+@using ScholarshipHive.Server.Dtos
+@model List<HoursListEntryDto>
+@{
+    ViewData["Title"] = "Hours";
+    string fromDate = ViewBag.FromDate;
+    string toDate = ViewBag.ToDate;
+    string Fmt(int minutes) => $"{minutes / 60}h {minutes % 60}m";
+    string Initials(string s) => string.Concat(s.Split(' ').Where(w => w.Length > 0).Select(w => w[0])).ToUpper();
+}
+
+<div class="page-header">
+    <div>
+        <h2>Hours</h2>
+        <p>Real accumulated presence time per person — every check-in/check-out cycle, not just first-in to last-out.</p>
+    </div>
+    <div>
+        <form method="post" asp-action="ClearHistory"
+              onsubmit="return confirm('This permanently deletes ALL check-in/check-out history for every employee — Hours totals AND each user\'s History tab will both go back to empty. This cannot be undone. Continue?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-danger">Clear all history</button>
+        </form>
+    </div>
+</div>
+
+<div class="sh-card mb-3">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">From</label>
+            <input type="date" name="from" value="@fromDate" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">To</label>
+            <input type="date" name="to" value="@toDate" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Reset to last month</a>
+        </div>
+    </form>
+</div>
+
+<div id="live-region">
+    <div class="card">
+        <div class="sect"><div><h3>Team</h3><p>@Model.Count people, @fromDate to @toDate</p></div></div>
+        <div class="text-muted small px-3 pb-2">Worked = completed check-in/out periods. Gap Time = checkout to next check-in on the same business day.</div>
+        @foreach (var r in Model)
+        {
+            <a asp-action="Detail" asp-route-id="@r.UserId" asp-route-from="@fromDate" asp-route-to="@toDate"
+               class="list-row" style="text-decoration:none;color:inherit;cursor:pointer">
+                <span class="av">@Initials(r.Name)</span>
+                <div class="grow">
+                    <p class="nm">@r.Name</p>
+                    <p class="rl mono">@r.Department</p>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end">
+                    <div class="text-end"><small class="text-muted d-block">Worked</small><span class="tag mono" style="background:var(--accSoft);color:var(--accDeep)">@Fmt(r.TotalMinutes)</span></div>
+                    <div class="text-end"><small class="text-muted d-block">Gap Time</small><span class="tag mono" style="background:var(--line);color:var(--ink)">@Fmt(r.GapMinutes)</span></div>
+                </div>
+            </a>
+        }
+        @if (!Model.Any())
+        {
+            <p class="text-center text-muted py-4 mb-0">No employees yet.</p>
+        }
+    </div>
+</div>

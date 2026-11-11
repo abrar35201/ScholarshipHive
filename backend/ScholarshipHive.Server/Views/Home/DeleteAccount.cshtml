@@ -1,0 +1,35 @@
+@{
+    ViewData["Title"] = "Delete Account & Data";
+    var today = DateTimeExtensions.PakistanToday().ToString("MMMM d, yyyy");
+}
+<div style="max-width:760px;margin:0 auto;padding:48px 24px 80px;font-family:-apple-system,'Segoe UI',Arial,sans-serif;color:#0f2220;line-height:1.65">
+    <h1 style="font-size:28px;font-weight:800;margin-bottom:4px">Delete Your Account &amp; Data</h1>
+    <p style="color:#5c7a75;font-size:13.5px;margin-top:0">Last updated @today</p>
+
+    <p>ScholarshipHive is an internal workforce attendance app — accounts are created and managed by an
+    admin at your organization, and there's no self-service "delete my account" button in the app itself.
+    That's deliberate: attendance and shift-report records are part of the company's own employment
+    recordkeeping, and only an admin at your organization can authorize removing them.</p>
+
+    <h2 style="font-size:19px;margin-top:36px">How to request deletion</h2>
+    <ol>
+        <li>Ask your organization's ScholarshipHive admin directly (in person, or however you'd normally
+            reach them), <b>or</b> email <a href="mailto:gmghulamgmghulam@gmail.com">gmghulamgmghulam@gmail.com</a> and
+            we'll route the request to your organization's admin.</li>
+        <li>Once confirmed, an admin deactivates and removes your account.</li>
+    </ol>
+
+    <h2 style="font-size:19px;margin-top:36px">What gets deleted</h2>
+    <ul>
+        <li><b>Deleted:</b> your login credentials, device recognition data, and push-notification token.</li>
+        <li><b>Retained</b> (as part of standard employment recordkeeping, per your organization's own
+            retention policy): historical attendance records and submitted shift reports tied to your
+            account while you were an active employee. These stay associated with your account internally
+            but are no longer accessible to you once the account is removed.</li>
+    </ul>
+
+    <h2 style="font-size:19px;margin-top:36px">Questions</h2>
+    <p>See our <a asp-controller="Home" asp-action="Privacy">Privacy Policy</a> for the full detail on what
+    we collect and why, or email <a href="mailto:gmghulamgmghulam@gmail.com">gmghulamgmghulam@gmail.com</a> with any
+    questions about this process.</p>
+</div>

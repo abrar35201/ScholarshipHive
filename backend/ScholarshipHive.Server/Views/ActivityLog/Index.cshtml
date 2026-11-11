@@ -1,0 +1,19 @@
+@model List<ScholarshipHive.Server.Models.AuditEvent>
+@{ ViewData["Title"] = "Audit Activity"; }
+<div class="page-header"><div><h2>Audit Activity</h2><p>Tracks newly saved changes such as employee creation, edits, deactivation, and attendance updates. Searchable, read-only records (UTC), up to 500 events.</p></div></div>
+<div class="sh-card p-3 mb-3">
+<form method="get" asp-action="Index" class="row g-2 align-items-end" role="search">
+  <div class="col-md-3"><label for="auditActor" class="form-label">Actor / username</label><input id="auditActor" class="form-control" name="actor" value="@ViewBag.ActorFilter" placeholder="e.g. admin" /></div>
+  <div class="col-md-2"><label for="auditAction" class="form-label">Action</label><select id="auditAction" name="action" class="form-select"><option value="">All actions</option><option value="Added" selected="@(ViewBag.ActionFilter == "Added")">Added</option><option value="Modified" selected="@(ViewBag.ActionFilter == "Modified")">Modified</option><option value="Edited" selected="@(ViewBag.ActionFilter == "Edited")">Edited</option><option value="Deleted" selected="@(ViewBag.ActionFilter == "Deleted")">Deleted</option></select></div>
+  <div class="col-md-2"><label for="auditEntity" class="form-label">Record type</label><input id="auditEntity" name="entity" class="form-control" value="@ViewBag.EntityFilter" placeholder="e.g. User" /></div>
+  <div class="col-md-2"><label for="auditFrom" class="form-label">From (UTC)</label><input id="auditFrom" type="date" name="fromUtc" value="@ViewBag.FromFilter" class="form-control" /></div>
+  <div class="col-md-2"><label for="auditTo" class="form-label">To (UTC)</label><input id="auditTo" type="date" name="toUtc" value="@ViewBag.ToFilter" class="form-control" /></div>
+  <div class="col-md-1"><button type="submit" class="btn btn-primary w-100">Filter</button></div>
+</form></div>
+<div class="sh-card p-3" style="overflow-x:auto">
+  <div class="d-flex justify-content-between align-items-center mb-2"><strong>Recent events</strong><span class="text-muted">@Model.Count record(s)</span></div>
+  <table class="table table-hover align-middle"><thead><tr><th>When (UTC)</th><th>Who</th><th>Did what</th><th>Record type</th><th>Record ID</th><th>Changed fields / audience</th></tr></thead><tbody>
+  @foreach (var evt in Model) { <tr><td style="white-space:nowrap">@evt.AtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td><td><strong>@evt.Actor</strong></td><td>@evt.Action</td><td>@evt.EntityType</td><td>@evt.EntityKey</td><td>@(string.IsNullOrWhiteSpace(evt.Details) ? "—" : evt.Details)</td></tr> }
+  </tbody></table>
+  @if (!Model.Any()) { <p class="text-muted mb-0">No matching events yet. Create or update an employee, then refresh this page to verify new audit records. Events made before audit logging was enabled cannot be recovered, and newly extracted databases do not inherit history from your old database.</p> }
+</div>

@@ -1,0 +1,24 @@
+@model List<ScholarshipHive.Server.Models.VisitorRecord>
+@{ ViewData["Title"] = "Reception"; }
+<div class="page-header"><div><h2>Reception</h2><p>Visitor register and check-in history.</p></div></div>
+@if (TempData["Error"] != null) { <div class="alert alert-danger" role="alert">@TempData["Error"]</div> }
+@if (TempData["Success"] != null) { <div class="alert alert-success" role="status">@TempData["Success"]</div> }
+@if (User.IsInRole("Receptionist") || User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("SuperAdmin")) {
+<details class="sh-card p-3 mb-3">
+<summary class="fw-semibold" style="cursor:pointer">Register new visitor</summary>
+<form asp-controller="Reception" asp-action="RegisterVisitor" method="post" class="row g-3 mt-1">
+<div class="col-md-6"><label for="vname" class="form-label">Full name *</label><input id="vname" name="fullName" class="form-control" minlength="2" maxlength="120" title="Use a valid visitor name" required /></div>
+<div class="col-md-6"><label for="vphone" class="form-label">Contact number *</label><input id="vphone" name="contact" class="form-control" type="tel" inputmode="tel" pattern="\+?[0-9 -]{7,20}" maxlength="40" required /></div>
+<div class="col-md-6"><label for="vemail" class="form-label">Email (optional)</label><input id="vemail" name="email" type="email" maxlength="150" class="form-control" /></div>
+<div class="col-md-6"><label class="form-label">Country</label><input name="country" class="form-control" maxlength="100" /></div>
+<div class="col-md-6"><label class="form-label">Program</label><input name="program" class="form-control" maxlength="100" /></div>
+<div class="col-md-6"><label class="form-label">Qualification</label><input name="qualification" class="form-control" maxlength="100" /></div>
+<div class="col-md-6"><label class="form-label">Counselor</label><input name="counsellor" class="form-control" maxlength="100" /></div>
+<div class="col-md-6"><label class="form-label">Inquiry type</label><select name="inquiryType" class="form-select"><option>Walk-in</option><option>Call</option><option>Referral</option></select></div>
+<div class="col-12"><label class="form-label">Remarks</label><textarea name="remarks" maxlength="1000" class="form-control" rows="2"></textarea></div>
+<div class="col-12"><button class="btn btn-primary" type="submit">Register visitor</button></div>
+</form></details> }
+<a href="/Reception/Consents" class="btn btn-outline-primary mb-3">Consent records</a> <a href="/Reception/CreateConsent" class="btn btn-primary mb-3">New consent draft</a>
+<div class="sh-card p-3"><table class="table table-hover"><thead><tr><th>Name</th><th>Contact</th><th>Country</th><th>Program</th><th>Arrived</th><th>Departed</th><th>Consent</th><th>Action</th></tr></thead><tbody>
+@foreach(var v in Model) { <tr style="background-color:@(v.CheckOutTime == null ? "#e8f8ef" : "#ffffff")"><td>@v.FullName</td><td>@v.Contact</td><td>@v.Country</td><td>@v.Program</td><td>@v.CheckInTime.ToLocalTime()</td><td>@(v.CheckOutTime?.ToLocalTime().ToString() ?? "On site")</td><td><a href="/Reception/CreateConsent?visitorId=@v.Id" class="btn btn-sm btn-outline-primary">Create draft</a></td><td>@if (v.CheckOutTime == null && (User.IsInRole("Receptionist") || User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("SuperAdmin"))) { <form asp-action="CheckoutVisitor" asp-route-id="@v.Id" method="post"><button type="submit" class="btn btn-sm btn-outline-secondary">Check out</button></form> }</td></tr> }
+</tbody></table></div>

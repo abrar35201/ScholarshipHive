@@ -1,0 +1,9 @@
+@model List<ScholarshipHive.Server.Models.ShiftChangeRequest>
+@{ViewData["Title"]="Shift Requests";}
+<div class="page-header"><div><h2>Shift Requests</h2><p>Employee custom shifts require approval before becoming active.</p></div></div>
+<div class="sh-card p-3 table-responsive"><table class="table table-hover"><thead><tr><th>Employee</th><th>Requested</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead><tbody>
+@foreach(var s in Model){<tr><td>@s.User?.Username</td><td>@s.ShiftType @s.Start.ToString("HH:mm")–@s.End.ToString("HH:mm")</td><td>@s.Reason</td><td>@s.Status</td><td>
+@if(s.Status=="Pending"){<div class="d-flex gap-2"><form asp-action="Decide" method="post"><input type="hidden" name="id" value="@s.Id"/><input type="hidden" name="decision" value="Approved"/><button class="btn btn-sm btn-success">Approve</button></form>
+<form asp-action="Decide" method="post"><input type="hidden" name="id" value="@s.Id"/><input type="hidden" name="decision" value="Rejected"/><button class="btn btn-sm btn-outline-danger">Reject</button></form></div>}
+else {@s.AdminNote}</td></tr>}
+</tbody></table></div>

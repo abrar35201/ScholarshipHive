@@ -1,0 +1,34 @@
+@model AuditReport
+@{
+    ViewData["Title"] = "Audit Report";
+}
+
+<div class="page-header">
+    <div>
+        <h2>@Model.Title</h2>
+        <p>By @Model.AuditorUser?.Username — @Model.CreatedAt.ToPakistanTime().ToString("yyyy-MM-dd hh:mm tt")</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Back to Audit Reports</a>
+</div>
+
+<div class="card" style="max-width:760px">
+    <div class="pad">
+        <p style="margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mute)">Findings</p>
+        <p class="quote">@(string.IsNullOrWhiteSpace(Model.TextContent) ? "No text entered." : Model.TextContent)</p>
+
+        <p style="margin:var(--gapY) 0 7px;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mute)">Attached files</p>
+        @if (Model.Files.Any())
+        {
+            <div style="display:flex;gap:7px;flex-wrap:wrap">
+                @foreach (var f in Model.Files)
+                {
+                    <a asp-action="Download" asp-route-fileId="@f.Id" class="btn btn-primary" style="text-decoration:none">@f.FileName</a>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted mb-0" style="font-size:13px">No files attached.</p>
+        }
+    </div>
+</div>

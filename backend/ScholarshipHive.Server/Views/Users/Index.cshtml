@@ -1,0 +1,195 @@
+@model List<User>
+@{
+    ViewData["Title"] = "Team";
+    var pending = Model.Where(u => !u.IsApproved).ToList();
+    var metrics = (Dictionary<int, TeamMetricsEntry>)ViewBag.Metrics;
+    EmployeeDepartment? selectedDepartment = ViewBag.SelectedDepartment;
+    string? searchQuery = ViewBag.SearchQuery;
+
+    var employees = Model.Where(u => u.Role == UserRole.Employee && u.IsApproved).ToList();
+    var teamMembers = employees.Where(u => selectedDepartment == null || u.Department == selectedDepartment).ToList();
+    var staff = Model.Where(u => (u.Role == UserRole.Receptionist || u.Role == UserRole.Admin || u.Role == UserRole.Auditor ||
+        u.Role == UserRole.HeadOfMarketing || u.Role == UserRole.HeadOfProcessing || u.Role == UserRole.HeadOfCounselors || u.Role == UserRole.Owner || u.Role == UserRole.CountryHead) && u.IsApproved).ToList();
+    bool isPrimaryAdminViewer = User.Identity?.IsAuthenticated == true &&
+        User.Identity.Name?.Equals("admin", StringComparison.OrdinalIgnoreCase) == true;
+    var deptCount = employees.Select(u => u.Department).Distinct().Count();
+    var pendingPasswordResets = (List<PendingPasswordReset>)ViewBag.PendingPasswordResets;
+
+    string Initials(User u) => string.Concat((u.FullName?.Length > 0 ? u.FullName : u.Username).Split(' ').Where(w => w.Length > 0).Select(w => w[0])).ToUpper();
+    (string Bg, string Fg, string Label) StatusStyle(string status) => status switch
+    {
+        "OnFloor" => ("var(--okSoft)", "var(--ok)", "On floor"),
+        "CheckedOut" => ("var(--accSoft)", "var(--accDeep)", "Checked out"),
+        "Late" => ("var(--warnSoft)", "var(--warn)", "Late"),
+        _ => ("var(--badSoft)", "var(--bad)", "Absent"),
+    };
+}
+
+<div class="page-header">
+    <div>
+        <h2>Team</h2>
+        <p>
+            @if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                @($"{Model.Count} result{(Model.Count == 1 ? "" : "s")} for \"{searchQuery}\" — ")
+                <a asp-action="Index">clear search</a>
+            }
+            else
+            {
+                @($"{employees.Count} people across {deptCount} department{(deptCount == 1 ? "" : "s")}")
+            }
+        </p>
+    </div>
+    @if (User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("SuperAdmin")) { <a asp-action="Create" class="btn btn-primary">+ Add User</a> }
+</div>
+
+@if (User.IsInRole("CountryHead") || User.IsInRole("Auditor")) {<style>
+form[action*="Approve"], form[action*="Delete"], form[action*="Reject"],
+form[action*="Reset"], .team-card a[href*="Edit"], .team-card button { display:none !important; }
+</style>}
+<div id="live-region">
+    @if (pending.Any())
+    {
+        <div class="card mb-3">
+            <div class="sect"><div><h3>Pending Approval</h3><p>Self-registered from the mobile app — can't log in until approved</p></div>
+                <span class="tag" style="margin-left:auto;background:var(--warnSoft);color:var(--warn)">@pending.Count</span></div>
+            @foreach (var u in pending)
+            {
+                <div class="list-row">
+                    <span class="av">@Initials(u)</span>
+                    <div class="grow"><p class="nm">@(u.FullName?.Length > 0 ? u.FullName : u.Username)</p><p class="rl">@u.Username · registered @u.CreatedAt.ToPakistanTime().ToString("yyyy-MM-dd hh:mm tt")</p></div>
+                    <form asp-action="Approve" asp-route-id="@u.Id" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:12px">Approve</button>
+                    </form>
+                    <form asp-action="Delete" asp-route-id="@u.Id" method="post" class="d-inline" onsubmit="return confirm('Reject and delete this registration?');">
+                        <button type="submit" class="btn danger" style="padding:6px 12px;font-size:12px">Reject</button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    @if (pendingPasswordResets.Any())
+    {
+        <div class="card mb-3">
+            <div class="sect"><div><h3>Password Reset Requests</h3><p>Not all from a recognized device — check the warning below before approving one that isn't</p></div>
+                <span class="tag" style="margin-left:auto;background:var(--warnSoft);color:var(--warn)">@pendingPasswordResets.Count</span></div>
+            @foreach (var p in pendingPasswordResets)
+            {
+                var u = p.User!;
+                <div class="list-row">
+                    <span class="av">@Initials(u)</span>
+                    <div class="grow">
+                        <p class="nm">@(u.FullName?.Length > 0 ? u.FullName : u.Username)</p>
+                        <p class="rl">@u.Username · requested @p.RequestedAt.ToPakistanTime().ToString("yyyy-MM-dd hh:mm tt")</p>
+                        @if (!p.DeviceRecognized)
+                        {
+                            <p class="rl" style="color:var(--bad)">⚠ Unrecognized device (reinstall/new phone, or not really them) — verify their identity before approving.</p>
+                        }
+                    </div>
+                    <form asp-action="ApprovePasswordReset" asp-route-id="@p.Id" method="post" class="d-inline" onsubmit="return confirm('Update this person\'s password to what they requested?');">
+                        <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:12px">Approve</button>
+                    </form>
+                    <form asp-action="RejectPasswordReset" asp-route-id="@p.Id" method="post" class="d-inline">
+                        <button type="submit" class="btn danger" style="padding:6px 12px;font-size:12px">Reject</button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="sh-card mb-3" style="padding:8px">
+        <div class="d-flex gap-2" style="overflow-x:auto">
+            <a class="btn btn-sm @(selectedDepartment == null ? "btn-primary" : "btn-outline-secondary")" asp-action="Index">All</a>
+            @foreach (var dept in new[] { EmployeeDepartment.Calling, EmployeeDepartment.Processing, EmployeeDepartment.Others, EmployeeDepartment.Interns, EmployeeDepartment.Marketing })
+            {
+                <a class="btn btn-sm @(selectedDepartment == dept ? "btn-primary" : "btn-outline-secondary")" asp-action="Index" asp-route-department="@dept">@dept</a>
+            }
+        </div>
+    </div>
+
+    <div class="team-grid">
+        @foreach (var u in teamMembers)
+        {
+            var m = metrics.GetValueOrDefault(u.Id, new TeamMetricsEntry(u.Id, 0, 0, 0, 100, "Absent"));
+            var (bg, fg, label) = StatusStyle(m.Status);
+            <div class="card team-card">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span class="av lg">@Initials(u)</span>
+                    <div class="grow">
+                        <p class="nm" style="font-size:14px;font-weight:600">@(u.FullName?.Length > 0 ? u.FullName : u.Username)</p>
+                        <p class="rl">@u.Department</p>
+                    </div>
+                    <span class="tag" style="background:@bg;color:@fg">@label</span>
+                </div>
+                <div class="grid" style="grid-template-columns:1fr 1fr;gap:6px;margin-top:12px">
+                    <div class="stat-card stat" style="padding:8px 6px;text-align:center">
+                        <p class="v" style="font-size:17px">@m.RatePct%</p><p class="l" style="font-size:10.5px">Attendance rate</p>
+                    </div>
+                    <div class="stat-card stat" style="padding:8px 6px;text-align:center">
+                        <p class="v" style="font-size:17px">@m.Reports</p><p class="l" style="font-size:10.5px">Reports (30d)</p>
+                    </div>
+                </div>
+                <div class="team-card-bottom">
+                    <div style="margin-bottom:10px">
+                        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mute);margin-bottom:4px">
+                            <span>Attendance</span><b style="color:var(--ink)">@m.RatePct%</b>
+                        </div>
+                        <div style="height:6px;border-radius:99px;background:var(--line);overflow:hidden">
+                            <div style="width:@(m.RatePct)%;height:100%;border-radius:99px;background:var(--ok)"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <a asp-action="Details" asp-route-id="@u.Id" class="btn ghost" style="flex:1;padding:7px 0;font-size:12px;text-align:center;text-decoration:none">History</a>
+                        <a asp-action="Edit" asp-route-id="@u.Id" class="btn ghost" style="flex:1;padding:7px 0;font-size:12px;text-align:center;text-decoration:none">Edit</a>
+                        @if (isPrimaryAdminViewer && u.Department == EmployeeDepartment.Marketing)
+                        {
+                            <form asp-action="SetMarketingAdmin" asp-route-id="@u.Id" method="post" style="flex:1">
+                                <input type="hidden" name="enabled" value="true" />
+                                <button type="submit" class="btn btn-primary" style="width:100%;padding:7px 0;font-size:12px">Grant Admin</button>
+                            </form>
+                        }
+                        <form asp-action="Delete" asp-route-id="@u.Id" method="post" onsubmit="return confirm('Delete this user?');" style="flex:1">
+                            <button type="submit" class="btn danger" style="width:100%;padding:7px 0;font-size:12px">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+        @if (!teamMembers.Any())
+        {
+            <p class="text-center text-muted py-4 mb-0">No one in this department yet.</p>
+        }
+    </div>
+
+    @if (staff.Any())
+    {
+        <div class="card mt">
+            <div class="sect"><div><h3>Staff & Management</h3><p>Receptionists, department heads, auditors and administrators</p></div></div>
+            @foreach (var u in staff)
+            {
+                <div class="list-row">
+                    <span class="av">@Initials(u)</span>
+                    <div class="grow"><p class="nm">@(u.FullName?.Length > 0 ? u.FullName : u.Username)</p><p class="rl">@u.Role</p></div>
+                    <span class="tag" style="background:@(u.IsActive ? "var(--okSoft)" : "var(--badSoft)");color:@(u.IsActive ? "var(--ok)" : "var(--bad)")">@(u.IsActive ? "Active" : "Inactive")</span>
+                    <a asp-action="Details" asp-route-id="@u.Id" class="btn ghost" style="padding:6px 12px;font-size:12px;text-decoration:none">Device / History</a>
+                    <a asp-action="Edit" asp-route-id="@u.Id" class="btn ghost" style="padding:6px 12px;font-size:12px;text-decoration:none">Edit</a>
+                    @if (isPrimaryAdminViewer && u.Department == EmployeeDepartment.Marketing && u.Role is UserRole.Admin or UserRole.HeadOfMarketing && !u.Username.Equals("admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <form asp-action="SetMarketingAdmin" asp-route-id="@u.Id" method="post">
+                            <input type="hidden" name="enabled" value="false" />
+                            <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:12px">Revoke Admin Access</button>
+                        </form>
+                    }
+                    @if (!u.Username.Equals("admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <form asp-action="Delete" asp-route-id="@u.Id" method="post" onsubmit="return confirm('Delete this user?');">
+                            <button type="submit" class="btn danger" style="padding:6px 12px;font-size:12px">Delete</button>
+                        </form>
+                    }
+                    else { <span class="tag">Protected admin</span> }
+                </div>
+            }
+        </div>
+    }
+</div>

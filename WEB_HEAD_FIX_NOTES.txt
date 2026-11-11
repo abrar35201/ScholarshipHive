@@ -1,0 +1,19 @@
+ScholarshipHive Web Department Fix — 10 November 2026
+Based strictly on ScholarshipHive_Combined_Bug_Fixes_2026-11-09.zip.
+
+WHAT CHANGED
+- Department Head search filters only the current head's assigned department (by username/name); dashboard counters remain unfiltered.
+- Department employee creation, update and removal buttons submit explicitly to /TeamScope/Add, /TeamScope/Update, /TeamScope/Remove via POST and antiforgery. Employee removal is a deactivation; historic attendance is preserved.
+- Visiting /api/team-scope/employees/{id} from a logged-in Head browser is now safely redirected to read-only /TeamScope/Records/{id}. Mobile API still requires a validated JWT for write operations. Opening API endpoints in a browser is not the way to create/delete an employee.
+- Audit Activity description explains when records appear. AppDbContext already logs model changes automatically; this fix does NOT add duplicate audit events. Existing older audit records cannot be reconstructed from a new database.
+
+HOW TO USE
+1. Keep a backup of the current working ScholarshipHive.dev.db file.
+2. Extract to a NEW folder. If preserving existing users, move/copy your known-good database to the new backend folder only after backing up the existing files; confirm SQLite schema compatiblity before replacing.
+3. Backend: cd backend/ScholarshipHive.Server ; dotnet restore ; dotnet build ; dotnet run
+4. Web: open http://localhost:5080/TeamScope while logged in as a department Head. Do not navigate to /api/team-scope/employees to add/remove employees.
+5. Check new events under /ActivityLog as Admin or Auditor, after performing new actions.
+6. For mobile, start Flutter in a separate terminal as before; make sure device USB reverse port 5080 is configured.
+
+VALIDATION LIMITATION
+Source edits and ZIP integrity were checked. dotnet/Flutter SDK unavailable in this environment; full compilation and live browser/mobile testing could not be performed. This ZIP cannot be certified bug-free without your local dotnet build and functional checks.

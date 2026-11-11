@@ -1,0 +1,57 @@
+@model User
+@{
+    ViewData["Title"] = $"{Model.Username} — Attendance";
+    var attendance = (List<Attendance>)ViewBag.Attendance;
+    var initials = string.Concat((Model.FullName?.Length > 0 ? Model.FullName : Model.Username).Split(' ').Where(w => w.Length > 0).Select(w => w[0])).ToUpper();
+}
+
+<div class="page-header">
+    <div>
+        <h2>@Model.FullName <span class="text-muted" style="font-size:14px;font-weight:400">(@Model.Username)</span></h2>
+        <p>Click a day to see that day's full check-in/check-out history.</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">Back to Users</a>
+</div>
+
+<div class="sh-card p-3 mb-3">
+<strong>Registered device</strong><p class="text-muted mb-2">@(Model.HomeDeviceId ?? "Not linked yet")</p>
+@if ((User.IsInRole("Admin") || User.IsInRole("Owner") || User.IsInRole("SuperAdmin")) &&
+    Model.Role != UserRole.SuperAdmin && !AccessRules.IsPrimaryAdmin(Model))
+{
+    <form asp-action="ResetDevice" method="post" onsubmit="return confirm('Reset this account’s linked phone? The employee will need a password login on the replacement phone.');">
+        <input type="hidden" name="id" value="@Model.Id"/>
+        <button class="btn btn-sm btn-outline-danger" type="submit">Reset registered device</button>
+    </form>
+}
+</div>
+<div class="card">
+    <div class="sect">
+        <span class="av lg">@initials</span>
+        <div style="margin-left:10px"><h3 style="font-size:15px">@(Model.FullName?.Length > 0 ? Model.FullName : Model.Username)</h3>
+            <p class="rl">@Model.Department · @attendance.Count day@(attendance.Count == 1 ? "" : "s") on record</p></div>
+    </div>
+    @foreach (var a in attendance)
+    {
+        var dateStr = a.Date.ToString("yyyy-MM-dd");
+        <div class="list-row">
+            <span class="tnum" style="width:90px">@dateStr</span>
+            <span class="tnum" style="width:70px">@a.CheckInTime.ToPakistanTime().ToString("hh:mm tt")</span>
+            <span class="tnum" style="width:70px">@(a.CheckOutTime?.ToPakistanTime().ToString("hh:mm tt") ?? "—")</span>
+            <div class="grow">
+                @if (a.ReportSubmitted)
+                {
+                    <span class="tag" style="background:var(--okSoft);color:var(--ok)">Submitted</span>
+                }
+                else
+                {
+                    <span class="tag" style="background:var(--badSoft);color:var(--bad)">Pending</span>
+                }
+            </div>
+            <a asp-action="DayHistory" asp-route-id="@Model.Id" asp-route-date="@dateStr" class="link">View day →</a>
+        </div>
+    }
+    @if (!attendance.Any())
+    {
+        <p class="text-center text-muted py-4 mb-0">No attendance yet.</p>
+    }
+</div>

@@ -1,0 +1,50 @@
+@model LocationFormViewModel
+@{
+    ViewData["Title"] = "Edit Office Location";
+}
+
+<div class="page-header">
+    <div><h2>Edit Office Location</h2><p>Update this geofence's details.</p></div>
+</div>
+
+<div class="sh-card" style="max-width:520px;">
+    <form asp-action="EditLocation" method="post">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+        <div class="mb-3">
+            <label asp-for="Name" class="form-label">Location Name</label>
+            <input asp-for="Name" class="form-control" />
+            <span asp-validation-for="Name" class="text-danger small"></span>
+        </div>
+
+        <partial name="_LocationMapPicker" />
+
+        <div class="mb-3">
+            <label asp-for="Latitude" class="form-label">Latitude</label>
+            <input asp-for="Latitude" class="form-control" />
+            <span asp-validation-for="Latitude" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Longitude" class="form-label">Longitude</label>
+            <input asp-for="Longitude" class="form-control" />
+            <span asp-validation-for="Longitude" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="RadiusMeters" class="form-label">Radius (meters)</label>
+            <input asp-for="RadiusMeters" class="form-control" />
+            <span asp-validation-for="RadiusMeters" class="text-danger small"></span>
+        </div>
+        <div class="form-check mb-4">
+            <input asp-for="IsActive" class="form-check-input" />
+            <label asp-for="IsActive" class="form-check-label">Active</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a asp-action="Index" class="btn btn-link">Cancel</a>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

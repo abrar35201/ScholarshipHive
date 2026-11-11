@@ -1,0 +1,25 @@
+@model List<ScholarshipHive.Server.Models.User>
+<!-- HEAD_WEB_ROUTE_FIX_2026_11_10_V3 -->
+@{ ViewData["Title"]="My Department"; }
+<div class="page-header"><div><h2>@ViewBag.Department — Department Dashboard</h2><p>Only your department records are visible here.</p></div></div>
+@if(TempData["Error"] != null){<div class="alert alert-danger">@TempData["Error"]</div>}
+@if(TempData["Success"] != null){<div class="alert alert-success">@TempData["Success"]</div>}
+<div class="row g-3 mb-3">
+@foreach (var metric in new (string Name, object Count)[]{("Team members",ViewBag.TeamTotal),("Check-ins today",ViewBag.CountToday),("Currently present",ViewBag.PresentNow),("Reports filed",ViewBag.ReportsToday),("Pending leaves",ViewBag.PendingLeaves),("Pending shifts",ViewBag.PendingShifts)}) {
+<div class="col-sm-6 col-lg-4"><div class="sh-card p-3"><div class="text-muted">@metric.Name</div><h2>@metric.Count</h2></div></div>}
+</div><div class="d-flex gap-2 mb-3"><a class="btn btn-outline-primary" href="/Announcements">Department announcements</a><a class="btn btn-outline-secondary" href="/TeamScope">Refresh dashboard</a></div>
+<div class="sh-card p-3 mb-3"><h5>Add employee to @ViewBag.Department</h5><p class="text-muted mb-2">Use this web form to create a department employee. The /api/team-scope endpoints are for the mobile app.</p><form action="/TeamScope/Add" method="post" data-web-head-route="v3" class="row g-2">
+@Html.AntiForgeryToken()
+<div class="col-md-3"><label>Username</label><input name="username" class="form-control" minlength="3" maxlength="50" required /></div>
+<div class="col-md-3"><label>Full name</label><input name="fullName" class="form-control" maxlength="100" required /></div>
+<div class="col-md-3"><label>Initial password</label><input id="teamPassword" name="password" type="password" class="form-control" minlength="8" required autocomplete="new-password" /></div>
+@if ((string)ViewBag.Department == "MarketingAndInterns") {<div class="col-md-2"><label>Department</label><select name="selectedDepartment" class="form-select"><option value="Marketing">Marketing</option><option value="Interns">Interns</option></select></div>}
+<div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary w-100">Add employee</button></div></form></div>
+<div class="sh-card p-3 mb-3"><form action="/TeamScope" method="get" class="d-flex flex-wrap gap-2" role="search"><input aria-label="Search department employees" name="q" value="@ViewBag.SearchQuery" class="form-control" style="max-width:360px" placeholder="Search your team by name or username"/><button type="submit" class="btn btn-outline-primary">Search</button><a class="btn btn-outline-secondary" href="/TeamScope">Clear</a></form></div>
+<div class="sh-card p-3 table-responsive"><table class="table"><thead><tr><th>Employee</th><th>Username</th><th>Shift</th><th>Status / update</th></tr></thead><tbody>
+@foreach(var u in Model){<tr><td><a href="/TeamScope/Records/@u.Id">@u.FullName</a></td><td>@u.Username</td><td>@u.ShiftStartTime – @u.ShiftEndTime</td><td>
+<form method="post" action="/TeamScope/Update" class="d-flex flex-wrap gap-2">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@u.Id"/><input name="fullName" value="@u.FullName" class="form-control form-control-sm" style="max-width:180px" required/><label><input name="isActive" type="checkbox" value="true" checked="@u.IsActive"/> Active</label><button class="btn btn-sm btn-outline-primary">Save</button></form>
+@if (u.IsActive) { <form action="/TeamScope/Remove/@u.Id" method="post" onsubmit="return confirm('Remove this employee from the active roster? Attendance and reports will be preserved.');" class="mt-1">@Html.AntiForgeryToken()
+    <button type="submit" class="btn btn-sm btn-outline-danger">Remove employee</button>
+</form> }
+</td></tr>}</tbody></table>@if(Model.Count == 0){<p class="text-muted">No matching employees in your department.</p>}</div>

@@ -1,0 +1,46 @@
+@using ScholarshipHive.Server.Controllers
+@model List<UsersController.CheckCycle>
+@{
+    var user = (User)ViewBag.User;
+    var date = (DateOnly)ViewBag.Date;
+    ViewData["Title"] = $"{user.Username} — {date:yyyy-MM-dd}";
+    var initials = string.Concat((user.FullName?.Length > 0 ? user.FullName : user.Username).Split(' ').Where(w => w.Length > 0).Select(w => w[0])).ToUpper();
+}
+
+<div class="page-header">
+    <div>
+        <h2>@user.FullName <span class="text-muted" style="font-size:14px;font-weight:400">(@user.Username)</span></h2>
+        <p>Full check-in / check-out history for @date.ToString("yyyy-MM-dd").</p>
+    </div>
+    <a asp-action="Details" asp-route-id="@user.Id" class="btn btn-outline-secondary">Back to Attendance</a>
+</div>
+
+<div class="card">
+    <div class="sect"><span class="av lg">@initials</span>
+        <div style="margin-left:10px"><h3 style="font-size:15px">@date.ToString("dddd, MMMM d")</h3>
+            <p class="rl">@Model.Count cycle@(Model.Count == 1 ? "" : "s")</p></div></div>
+    @foreach (var c in Model)
+    {
+        <div class="list-row">
+            <span class="av"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+            <div class="grow">
+                <p class="nm">@(c.CheckIn is not null ? c.CheckIn.Timestamp.ToPakistanTime().ToString("hh:mm:ss tt") : "—")
+                    <span style="color:var(--mute);font-weight:400"> → </span>
+                    @if (c.CheckOut is not null)
+                    {
+                        @c.CheckOut.Timestamp.ToPakistanTime().ToString("hh:mm:ss tt")
+                    }
+                    else
+                    {
+                        <span class="tag" style="background:var(--okSoft);color:var(--ok)">Still checked in</span>
+                    }
+                </p>
+                <p class="rl mono">@c.RouterName</p>
+            </div>
+        </div>
+    }
+    @if (!Model.Any())
+    {
+        <p class="text-center text-muted py-4 mb-0">No check-in/check-out activity on this day.</p>
+    }
+</div>

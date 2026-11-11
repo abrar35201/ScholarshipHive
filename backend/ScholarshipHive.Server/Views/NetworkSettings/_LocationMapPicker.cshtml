@@ -1,0 +1,82 @@
+@using System.Text.Json
+@* Click-to-place-pin map picker for the Latitude/Longitude fields on this page.
+   Uses Leaflet with OpenStreetMap tiles and visible attribution. The browser
+   follows the tile server's cache headers and sends no cache-busting requests. *@
+@{
+    // The old fallback (no existing locations, geolocation denied/slow) centered
+    // on all of Pakistan at zoom 5 — nowhere near precise enough to place a real
+    // pin without several manual zoom-ins first. SetMapContextAsync (see
+    // NetworkSettingsController) gives this the most recently added real
+    // location as a MUCH closer starting point, plus every other existing
+    // location plotted as a reference marker.
+    object? defaultCenter = ViewBag.DefaultCenter;
+    var existingLocations = ViewBag.ExistingLocations ?? new List<object>();
+    var defaultCenterJson = JsonSerializer.Serialize(defaultCenter);
+    var existingLocationsJson = JsonSerializer.Serialize(existingLocations);
+}
+
+<div class="mb-3">
+    <label class="form-label">Pick on Map</label>
+    <div id="location-map" style="height: 340px; border-radius: 8px; border: 1px solid #dee2e6;"></div>
+    <div class="form-text">Click anywhere on the map to set the exact coordinates below. Gray markers are your other existing locations.</div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Deferred to DOMContentLoaded — this partial is included BEFORE the
+    // Latitude/Longitude inputs on both CreateLocation and EditLocation, so
+    // running immediately (as a plain IIFE) hit a null getElementById before
+    // the rest of the form had parsed, throwing before the map ever
+    // initialized. Waiting for the full DOM makes this safe regardless of
+    // where on the page the inputs end up.
+    document.addEventListener('DOMContentLoaded', function () {
+        var latInput = document.getElementById('Latitude');
+        var lngInput = document.getElementById('Longitude');
+        var hasInitial = !!(latInput.value && lngInput.value);
+        var defaultCenter = @Html.Raw(defaultCenterJson);
+        var existingLocations = @Html.Raw(existingLocationsJson);
+
+        var initialLat = hasInitial ? parseFloat(latInput.value) : (defaultCenter ? defaultCenter.lat : 30.3753);
+        var initialLng = hasInitial ? parseFloat(lngInput.value) : (defaultCenter ? defaultCenter.lng : 69.3451);
+        // Precise (building-level) when opening on an existing pin or a nearby
+        // known location; only falls all the way back to a country-wide view
+        // when there's truly nothing on record yet.
+        var initialZoom = hasInitial ? 16 : (defaultCenter ? 15 : 6);
+
+        var map = L.map('location-map').setView([initialLat, initialLng], initialZoom);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>',
+            maxZoom: 19
+        }).addTo(map);
+
+        existingLocations.forEach(function (loc) {
+            L.circleMarker([loc.latitude, loc.longitude], {
+                radius: 7, color: '#6b7280', weight: 2, fillColor: '#9ca3af', fillOpacity: 0.6
+            }).addTo(map).bindTooltip(loc.name);
+        });
+
+        var marker = hasInitial ? L.marker([initialLat, initialLng]).addTo(map) : null;
+
+        function placeMarker(latlng) {
+            latInput.value = latlng.lat.toFixed(6);
+            lngInput.value = latlng.lng.toFixed(6);
+            if (marker) {
+                marker.setLatLng(latlng);
+            } else {
+                marker = L.marker(latlng).addTo(map);
+            }
+        }
+
+        map.on('click', function (e) {
+            placeMarker(e.latlng);
+        });
+
+        if (navigator.geolocation && !hasInitial) {
+            navigator.geolocation.getCurrentPosition(function (pos) {
+                var here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                map.setView(here, 16);
+            }, function () { /* best-effort — the admin can just click the map, now from a much closer starting point already */ });
+        }
+    });
+</script>

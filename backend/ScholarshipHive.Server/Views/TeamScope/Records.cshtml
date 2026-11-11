@@ -1,0 +1,7 @@
+@model List<ScholarshipHive.Server.Models.Attendance>
+@{ ViewData["Title"]="Department Employee History"; var employee=(ScholarshipHive.Server.Models.User)ViewBag.Employee; }
+<div class="page-header"><div><h2>@employee.FullName — Attendance &amp; Reports</h2><p>Department-limited history · last 90 attendance days</p></div></div>
+<a href="/TeamScope" class="btn btn-outline-secondary mb-3">Back to my department</a>
+<div class="sh-card p-3 table-responsive"><table class="table"><thead><tr><th>Day</th><th>Check in</th><th>Check out</th><th>Report</th></tr></thead><tbody>
+@foreach(var a in Model){<tr><td>@a.Date</td><td>@a.CheckInTime.ToLocalTime()</td><td>@(a.CheckOutTime?.ToLocalTime().ToString() ?? "Open")</td><td>@(a.Report?.TextContent ?? (a.ReportSubmitted ? "Submitted" : "Not submitted"))</td></tr>}
+</tbody></table></div>

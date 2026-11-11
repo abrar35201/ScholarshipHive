@@ -1,0 +1,15 @@
+@using ScholarshipHive.Server.Models
+@{ ViewData["Title"]="Pending Notifications";
+var leaves=(List<LeaveRequest>)ViewBag.Leaves;
+var shifts=(List<ShiftChangeRequest>)ViewBag.Shifts; }
+<div class="page-header"><div><h2>Action Center</h2><p>Pending leave requests, shift changes and approvals.</p></div></div>
+<div class="row g-3 mb-3"><div class="col-sm-6"><a class="sh-card p-3 d-block text-decoration-none" href="/Leaves"><div>Pending Leave Requests</div><h2>@leaves.Count</h2></a></div><div class="col-sm-6"><a class="sh-card p-3 d-block text-decoration-none" href="/ShiftRequests"><div>Pending Shift Requests</div><h2>@shifts.Count</h2></a></div></div>
+<div class="sh-card p-3 mb-3"><h5>Leave applications</h5>
+@foreach(var l in leaves){<div class="py-2 border-bottom"><b>@(l.User?.FullName ?? "Employee")</b> — @l.LeaveType for @l.LeaveDate · <a href="/Leaves">Review</a></div>}
+@if(leaves.Count==0){<p>No pending leaves.</p>}
+</div>
+<div class="sh-card p-3 mb-3"><h5>Custom shift applications</h5>
+@foreach(var s in shifts){<div class="py-2 border-bottom"><b>@(s.User?.FullName ?? "Employee")</b> — @s.Start to @s.End · <a href="/ShiftRequests">Review</a></div>}
+@if(shifts.Count==0){<p>No pending shift requests.</p>}
+</div>
+<div class="sh-card p-3"><h5>Other pending items</h5><a href="/Users">User approvals: @ViewBag.PendingUsers</a> · <a href="/NetworkSettings">Network approvals: @ViewBag.PendingRouters</a></div>

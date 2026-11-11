@@ -1,0 +1,182 @@
+@using ScholarshipHive.Server.Models
+@model List<Report>
+@{
+    ViewData["Title"] = "Reports";
+    var users = (List<User>)ViewBag.Users;
+    int? selectedUserId = ViewBag.SelectedUserId;
+    string? selectedFromDate = ViewBag.SelectedFromDate;
+    string? selectedToDate = ViewBag.SelectedToDate;
+    EmployeeDepartment selectedDepartment = ViewBag.SelectedDepartment;
+    var isTextDepartment = selectedDepartment != EmployeeDepartment.Calling;
+    ViewData["ActiveTab"] = selectedDepartment.ToString();
+    ViewData["FromDateForLinks"] = selectedFromDate;
+    ViewData["ToDateForLinks"] = selectedToDate;
+    string Initials(string s) => string.Concat(s.Split(' ').Where(w => w.Length > 0).Select(w => w[0])).ToUpper();
+    Report? selected = ViewBag.SelectedReport;
+
+    (string Bg, string Fg, string Label) ReviewStyle(ReportReviewStatus status) => status switch
+    {
+        ReportReviewStatus.SignedOff => ("var(--okSoft)", "var(--ok)", "Signed off"),
+        ReportReviewStatus.Flagged => ("var(--badSoft)", "var(--bad)", "Flagged"),
+        ReportReviewStatus.NeedsMoreDetail => ("var(--warnSoft)", "var(--warn)", "Needs detail"),
+        _ => ("var(--accSoft)", "var(--accDeep)", "New"),
+    };
+}
+
+<div class="page-header">
+    <div>
+        <h2>Shift reports</h2>
+        <p>Nobody checks out until they've filed one.</p>
+    </div>
+    <span class="tag" style="background:var(--accSoft);color:var(--accDeep)">@Model.Count in range</span>
+</div>
+
+<partial name="_ReportsTabStrip" />
+
+<div class="sh-card mb-3">
+    <form method="get" class="row g-3 align-items-end">
+        <input type="hidden" name="department" value="@selectedDepartment" />
+        <div class="col-auto">
+            <label class="form-label">User</label>
+            <select name="userId" class="form-select">
+                <option value="">All Users</option>
+                @foreach (var u in users)
+                {
+                    <option value="@u.Id" selected="@(selectedUserId == u.Id)">@(u.FullName?.Length > 0 ? u.FullName : u.Username)</option>
+                }
+            </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label">From</label>
+            <input type="date" name="fromDate" value="@selectedFromDate" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">To</label>
+            <input type="date" name="toDate" value="@selectedToDate" class="form-control" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a asp-action="Index" asp-route-department="@selectedDepartment" class="btn btn-outline-secondary">Reset to Today</a>
+        </div>
+    </form>
+</div>
+
+<div id="live-region">
+    <div class="grid" style="grid-template-columns:minmax(280px,1fr) minmax(340px,1.6fr)">
+        <div class="card">
+            <div class="sect"><div><h3>Reports</h3><p>@Model.Count in range</p></div></div>
+            @foreach (var r in Model)
+            {
+                var name = r.User?.FullName?.Length > 0 ? r.User.FullName : r.User?.Username ?? "?";
+                var (bg, fg, label) = ReviewStyle(r.ReviewStatus);
+                <a asp-action="Index" asp-route-department="@selectedDepartment" asp-route-userId="@selectedUserId"
+                   asp-route-fromDate="@selectedFromDate" asp-route-toDate="@selectedToDate" asp-route-selectedReportId="@r.Id"
+                   class="list-row @(selected?.Id == r.Id ? "on" : "")" style="text-decoration:none;color:inherit;cursor:pointer;@(selected?.Id == r.Id ? "background:var(--accSoft)" : "")">
+                    <span class="av">@Initials(name)</span>
+                    <div class="grow">
+                        <p class="nm">@name</p>
+                        <p class="rl mono">RPT-@r.Id · @r.Attendance?.Date.ToString("MMM d") · @r.SubmittedAt.ToPakistanTime().ToString("hh:mm tt")</p>
+                    </div>
+                    <span class="tag" style="background:@bg;color:@fg">@label</span>
+                </a>
+            }
+            @if (!Model.Any())
+            {
+                <p class="text-center text-muted py-4 mb-0">No reports found for this date range.</p>
+            }
+        </div>
+
+        <div class="card">
+            @if (selected is null)
+            {
+                <p class="text-center text-muted py-5 mb-0">Select a report to see its full detail.</p>
+            }
+            else
+            {
+                var name = selected.User?.FullName?.Length > 0 ? selected.User.FullName : selected.User?.Username ?? "?";
+                var initials = Initials(name);
+                var (bg, fg, label) = ReviewStyle(selected.ReviewStatus);
+                <div class="sect">
+                    <span class="av lg">@initials</span>
+                    <div style="margin-left:10px">
+                        <h3 style="font-size:16px">@name</h3>
+                        <p class="mono rl">RPT-@selected.Id · @selected.Attendance?.Date.ToString("d MMM") · filed @selected.SubmittedAt.ToPakistanTime().ToString("hh:mm tt")</p>
+                    </div>
+                    <span class="tag" style="margin-left:auto;background:@bg;color:@fg">@label</span>
+                </div>
+                <div class="pad">
+                    @{ var selIsText = selected.User?.Department != EmployeeDepartment.Calling; }
+                    @if (selIsText)
+                    {
+                        <p style="margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mute)">Shift notes</p>
+                        <p class="quote">@(string.IsNullOrWhiteSpace(selected.TextContent) ? "No text entered." : selected.TextContent)</p>
+                    }
+                    else
+                    {
+                        <div class="grid g3" style="gap:6px">
+                            @foreach (var (mLabel, value) in new[] {
+                                ("Leads handled", selected.NewLeads), ("Closed", selected.Conversion), ("Close rate", selected.NewLeads > 0 ? selected.Conversion * 100 / selected.NewLeads : 0),
+                            })
+                            {
+                                <div class="mini-stat"><b>@value@(mLabel == "Close rate" ? "%" : "")</b><span>@mLabel</span></div>
+                            }
+                        </div>
+                        <div class="grid g3 mt" style="gap:6px">
+                            @foreach (var (mLabel, value) in new[] {
+                                ("Unread chats", selected.UnreadChats), ("Qualified", selected.QualifiedLeads), ("Follow up", selected.FollowUp),
+                                ("Calls", selected.Calls), ("Potential", selected.Potential), ("Walk-ins", selected.WalkIns),
+                            })
+                            {
+                                <div class="mini-stat"><b>@value</b><span>@mLabel</span></div>
+                            }
+                        </div>
+                    }
+
+                    <div style="display:flex;align-items:center;gap:8px;margin:var(--gapY) 0;flex-wrap:wrap">
+                        <span style="font-size:12px;color:var(--mute)">Checked out at</span>
+                        <span class="tnum" style="background:var(--bg);padding:3px 9px;border-radius:99px">@(selected.Attendance?.CheckOutTime?.ToPakistanTime().ToString("hh:mm tt") ?? "still in")</span>
+                        <span class="tag" style="background:var(--accSoft);color:var(--accDeep)">@selected.User?.Department</span>
+                    </div>
+
+                    @if (selected.Files.Any())
+                    {
+                        <p style="margin:0 0 7px;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--mute)">Attached files</p>
+                        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:var(--gapY)">
+                            @foreach (var f in selected.Files)
+                            {
+                                <a asp-action="Download" asp-route-fileId="@f.Id" class="btn btn-primary" style="text-decoration:none">@f.FileName</a>
+                            }
+                        </div>
+                    }
+
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <form asp-action="SignOff" method="post">
+                            <input type="hidden" name="id" value="@selected.Id" />
+                            <input type="hidden" name="department" value="@selectedDepartment" />
+                            <input type="hidden" name="userId" value="@selectedUserId" />
+                            <input type="hidden" name="fromDate" value="@selectedFromDate" />
+                            <input type="hidden" name="toDate" value="@selectedToDate" />
+                            <button type="submit" class="btn btn-primary">Sign off</button>
+                        </form>
+                        <form asp-action="AskForDetail" method="post">
+                            <input type="hidden" name="id" value="@selected.Id" />
+                            <input type="hidden" name="department" value="@selectedDepartment" />
+                            <input type="hidden" name="userId" value="@selectedUserId" />
+                            <input type="hidden" name="fromDate" value="@selectedFromDate" />
+                            <input type="hidden" name="toDate" value="@selectedToDate" />
+                            <button type="submit" class="btn ghost">Ask for more detail</button>
+                        </form>
+                        <form asp-action="Flag" method="post">
+                            <input type="hidden" name="id" value="@selected.Id" />
+                            <input type="hidden" name="department" value="@selectedDepartment" />
+                            <input type="hidden" name="userId" value="@selectedUserId" />
+                            <input type="hidden" name="fromDate" value="@selectedFromDate" />
+                            <input type="hidden" name="toDate" value="@selectedToDate" />
+                            <button type="submit" class="btn danger">Flag</button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

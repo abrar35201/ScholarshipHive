@@ -1,0 +1,75 @@
+@model UserFormViewModel
+@{
+    ViewData["Title"] = "Add User";
+    var departmentOptions = Html.GetEnumSelectList<EmployeeDepartment>()
+        .Where(d => d.Value != "5" && d.Value != "6").ToList();
+    var roleOptions = Html.GetEnumSelectList<UserRole>()
+        .Where(x => x.Value != ((int)UserRole.SuperAdmin).ToString()
+            && x.Value != ((int)UserRole.Admin).ToString()
+            && (User.Identity?.Name?.Equals("admin", StringComparison.OrdinalIgnoreCase) == true || (x.Value != ((int)UserRole.HeadOfProcessing).ToString() && x.Value != ((int)UserRole.HeadOfMarketing).ToString() && x.Value != ((int)UserRole.HeadOfCounselors).ToString())))
+        .Where(x => User.IsInRole("HeadOfMarketing") ? x.Value == ((int)UserRole.Employee).ToString() : true)
+        .ToList();
+}
+
+<div class="page-header">
+    <div>
+        <h2>Add User</h2>
+        <p>Create a login for an employee or another admin.</p>
+    </div>
+</div>
+
+<div class="sh-card" style="max-width:520px;">
+    <form asp-action="Create" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+        <div class="mb-3">
+            <label asp-for="Username" class="form-label">Username</label>
+            <input asp-for="Username" class="form-control" />
+            <span asp-validation-for="Username" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="FullName" class="form-label">Full Name</label>
+            <input asp-for="FullName" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label asp-for="Password" class="form-label">Password</label>
+            <input asp-for="Password" type="password" class="form-control" id="newUserPassword" autocomplete="new-password" />
+            <span asp-validation-for="Password" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Role" class="form-label">Role</label>
+            <select asp-for="Role" class="form-select" asp-items="roleOptions"></select>
+        </div>
+        <div class="mb-3" id="employeeDepartmentField">
+            <label asp-for="Department" class="form-label">Department</label>
+            <select asp-for="Department" class="form-select" asp-items="departmentOptions"></select>
+            <span class="form-text">Only applies to Employees — each department has its own daily report form.</span>
+        </div>
+        <div class="form-check mb-4">
+            <input asp-for="IsActive" class="form-check-input" />
+            <label asp-for="IsActive" class="form-check-label">Active</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create User</button>
+        <a asp-action="Index" class="btn btn-link">Cancel</a>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+      (function () {
+        const role = document.getElementById('Role');
+        const field = document.getElementById('employeeDepartmentField');
+        const department = document.getElementById('Department');
+        if (!role || !field || !department) return;
+        function syncDepartment() {
+          const isEmployee = role.value === '@((int)UserRole.Employee)';
+          field.hidden = !isEmployee;
+          department.disabled = !isEmployee;
+        }
+        role.addEventListener('change', syncDepartment);
+        syncDepartment();
+      })();
+    </script>
+}

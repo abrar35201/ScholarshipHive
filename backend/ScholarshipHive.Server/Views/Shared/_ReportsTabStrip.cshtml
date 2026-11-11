@@ -1,0 +1,26 @@
+@using ScholarshipHive.Server.Models
+@{
+    // Passed by the including view: ActiveTab is "Calling" | "Processing" | "Others" | "Interns" | "Audit",
+    // FromDateForLinks/ToDateForLinks (optional) preserve the currently selected
+    // date range across department tabs.
+    string activeTab = ViewData["ActiveTab"] as string ?? "Calling";
+    string? fromDateForLinks = ViewData["FromDateForLinks"] as string;
+    string? toDateForLinks = ViewData["ToDateForLinks"] as string;
+}
+
+<div class="sh-card mb-3" style="padding: 8px;">
+    <div class="d-flex gap-2" style="overflow-x: auto;">
+        @foreach (var (label, dept) in new[] { ("Calling", EmployeeDepartment.Calling), ("Processing", EmployeeDepartment.Processing), ("Others", EmployeeDepartment.Others), ("Interns", EmployeeDepartment.Interns) })
+        {
+            var isActive = activeTab == label;
+            <a class="btn btn-sm @(isActive ? "btn-primary" : "btn-outline-secondary")"
+               asp-controller="Reports" asp-action="Index" asp-route-department="@dept" asp-route-fromDate="@fromDateForLinks" asp-route-toDate="@toDateForLinks">
+                @label
+            </a>
+        }
+        <a class="btn btn-sm @(activeTab == "Audit" ? "btn-primary" : "btn-outline-secondary")"
+           asp-controller="AuditReports" asp-action="Index">
+            Audit Reports
+        </a>
+    </div>
+</div>
