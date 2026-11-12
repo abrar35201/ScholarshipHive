@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ScholarshipHive.Server.Data;
@@ -15,15 +16,49 @@ public sealed class ShiftChangeInput
     public TimeOnly End { get; set; }
     [Required, MaxLength(1000)] public string Reason { get; set; } = "";
 }
+public sealed class ShiftChangeCredentialInput
+{
+    [Required] public string Username { get; set; } = "";
+    [Required] public string Password { get; set; } = "";
+    public ShiftType ShiftType { get; set; }
+    public TimeOnly Start { get; set; }
+    public TimeOnly End { get; set; }
+    [Required, MaxLength(1000)] public string Reason { get; set; } = "";
+}
+public sealed class ShiftRequestCredentialInput
+{
+    [Required] public string Username { get; set; } = "";
+    [Required] public string Password { get; set; } = "";
+}
 public sealed class ShiftDecisionInput { [Required] public string Decision {get;set;}=""; public string? AdminNote{get;set;} }
 [ApiController]
 [Route("api/shift-requests")]
 public class ShiftRequestsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IPasswordHasher<User> _hasher;
     private readonly RealtimeNotifier _realtime;private readonly FcmPushService _fcm;
-    public ShiftRequestsController(AppDbContext db,RealtimeNotifier realtime,FcmPushService fcm)
-    { _db=db;_realtime=realtime;_fcm=fcm; }
+    public ShiftRequestsController(AppDbContext db,IPasswordHasher<User> hasher,RealtimeNotifier realtime,FcmPushService fcm)
+    { _db=db;_hasher=hasher;_realtime=realtime;_fcm=fcm; }
+    // This off-network path authenticates each operation with the account password.
+    // It does not create a login session, device binding, or attendance record.
+    private async Task<User?> VerifyShiftCredentials(string username,string password)
+    {
+        var normalized=username.Trim().ToLowerInvariant();
+        var user=await _db.Users.FirstOrDefaultAsync(x=>x.Username.ToLower()==normalized&&x.IsActive&&x.IsApproved);
+        if(user==null)return null;
+        if(user.LockedUntil>DateTime.UtcNow)return null;
+        if(_hasher.VerifyHashedPassword(user,user.PasswordHash,password)==PasswordVerificationResult.Failed)
+        {
+            user.FailedLoginAttempts++;
+            if(user.FailedLoginAttempts>=AuthPolicy.MaxFailedAttempts){user.LockedUntil=DateTime.UtcNow.Add(AuthPolicy.LockoutDuration);user.FailedLoginAttempts=0;}
+            await _db.SaveChangesAsync();
+            return null;
+        }
+        if(AccessRules.IsPrimaryAdmin(user))return null;
+        if(user.FailedLoginAttempts!=0||user.LockedUntil.HasValue){user.FailedLoginAttempts=0;user.LockedUntil=null;await _db.SaveChangesAsync();}
+        return user;
+    }
     private async Task<User?> CurrentRequester()
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return null;
@@ -42,6 +77,28 @@ public class ShiftRequestsController : ControllerBase
         var tokens=await _db.Users.Where(u=>u.IsActive&&u.IsApproved&&u.FcmToken!=null&&(u.Role==UserRole.Admin||u.Role==UserRole.SuperAdmin||u.Role==UserRole.Owner||u.Role==UserRole.CountryHead||u.Role==UserRole.HeadOfMarketing||u.Role==UserRole.HeadOfProcessing)).Select(u=>u.FcmToken!).ToListAsync();
         foreach(var t in tokens)await _fcm.SendNotificationAsync(t,"Shift approval requested",$"{user.Username} requested {input.Start:HH:mm}–{input.End:HH:mm}.");
         return Ok(new{entry.Id,entry.Status});
+    }
+    [HttpPost("remote/apply"),AllowAnonymous]
+    public async Task<IActionResult> ApplyRemotely([FromBody] ShiftChangeCredentialInput input)
+    {
+        if(string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Length>1000||input.Start==input.End||!Enum.IsDefined(input.ShiftType))
+            return BadRequest(new{message="Valid times, shift type, and a reason are required."});
+        var user=await VerifyShiftCredentials(input.Username,input.Password);
+        if(user==null)return Unauthorized(new{message="Invalid credentials or account not approved."});
+        if(await _db.ShiftChangeRequests.AnyAsync(x=>x.UserId==user.Id&&x.Status=="Pending"))return Conflict(new{message="You already have a pending shift request."});
+        var entry=new ShiftChangeRequest{UserId=user.Id,ShiftType=input.ShiftType,Start=input.Start,End=input.End,Reason=input.Reason.Trim()};
+        _db.ShiftChangeRequests.Add(entry);await _db.SaveChangesAsync();await _realtime.NotifyAsync("shift-requests");
+        var tokens=await _db.Users.Where(u=>u.IsActive&&u.IsApproved&&u.FcmToken!=null&&(u.Role==UserRole.Admin||u.Role==UserRole.SuperAdmin||u.Role==UserRole.Owner||u.Role==UserRole.CountryHead||u.Role==UserRole.HeadOfMarketing||u.Role==UserRole.HeadOfProcessing)).Select(u=>u.FcmToken!).ToListAsync();
+        foreach(var token in tokens)await _fcm.SendNotificationAsync(token,"Shift approval requested",$"{user.Username} requested {input.Start:HH:mm}–{input.End:HH:mm}.");
+        return Ok(new{entry.Id,entry.Status});
+    }
+    [HttpPost("remote/mine"),AllowAnonymous]
+    public async Task<IActionResult> RemoteMine([FromBody] ShiftRequestCredentialInput input)
+    {
+        var user=await VerifyShiftCredentials(input.Username,input.Password);
+        if(user==null)return Unauthorized(new{message="Invalid credentials or account not approved."});
+        return Ok(await _db.ShiftChangeRequests.AsNoTracking().Where(x=>x.UserId==user.Id).OrderByDescending(x=>x.CreatedAt).Take(100)
+            .Select(x=>new{x.Id,x.ShiftType,x.Start,x.End,x.Reason,x.Status,x.CreatedAt,x.ReviewedAt,x.AdminNote}).ToListAsync());
     }
     [HttpGet("mine"),Authorize(AuthenticationSchemes=JwtBearerDefaults.AuthenticationScheme)]
     public async Task<IActionResult> Mine()

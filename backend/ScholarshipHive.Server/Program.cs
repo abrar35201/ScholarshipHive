@@ -112,6 +112,8 @@ var authRateLimitedPaths = new[]
     "/api/auth/remote-admin-login",
     "/api/leaves/apply",
     "/api/leaves/status",
+    "/api/shift-requests/remote/apply",
+    "/api/shift-requests/remote/mine",
     "/api/auth/login",
     "/api/auth/forgot-password",
     "/Account/Login"
@@ -407,6 +409,9 @@ app.Use(async (ctx, next) =>
                 path.Equals("/ShiftRequests/Submit", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/team-scope", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/api/shift-requests/apply", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/api/shift-requests/mine", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/api/shift-requests/remote/apply", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/api/shift-requests/remote/mine", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/Announcements", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/announcements", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase) ||
@@ -440,6 +445,8 @@ app.Use(async (ctx, next) =>
             var isOwnShiftRequest = path.Equals("/ShiftRequests/Mine", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/ShiftRequests/Submit", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/api/shift-requests/apply", StringComparison.OrdinalIgnoreCase);
+            isOwnShiftRequest = isOwnShiftRequest || path.Equals("/api/shift-requests/remote/apply", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/api/shift-requests/remote/mine", StringComparison.OrdinalIgnoreCase);
             if (sensitive || (!HttpMethods.IsGet(ctx.Request.Method) && !isNotice && !isOwnShiftRequest &&
                 !path.StartsWith("/Account/Logout", StringComparison.OrdinalIgnoreCase) &&
                 !path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase) &&
