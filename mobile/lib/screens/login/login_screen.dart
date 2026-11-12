@@ -5,7 +5,6 @@ import '../../providers/app_provider.dart';
 import '../register/register_screen.dart';
 import 'forgot_password_screen.dart';
 import '../leave/leave_request_screen.dart';
-import '../shift/shift_request_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -259,10 +258,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 Center(child: TextButton(
                                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LeaveRequestScreen(username: _usernameController.text.trim()))),
                                   child: const Text('Apply for Leave'),
-                                )),
-                                Center(child: TextButton(
-                                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ShiftRequestScreen(username: _usernameController.text.trim()))),
-                                  child: const Text('Request For Custom Shift'),
                                 )),
                                 Center(
                                   child: TextButton(

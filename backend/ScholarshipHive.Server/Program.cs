@@ -389,10 +389,24 @@ app.Use(async (ctx, next) =>
             !ctx.User.IsInRole(actor.Role.ToString()))
             { ctx.Response.StatusCode = 401; return; }
         var path = ctx.Request.Path.Value ?? "";
+        if (actor.Role == UserRole.Employee)
+        {
+            var allowed = path.Equals("/ShiftRequests/Mine", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/ShiftRequests/Submit", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/Account/Logout", StringComparison.OrdinalIgnoreCase);
+            if (!allowed)
+            {
+                if (path == "/" && HttpMethods.IsGet(ctx.Request.Method)) { ctx.Response.Redirect("/ShiftRequests/Mine"); return; }
+                ctx.Response.StatusCode = 403; return;
+            }
+        }
         if (AccessRules.IsDepartmentHead(actor.Role))
         {
             var allowed = path.StartsWith("/TeamScope", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/ShiftRequests/Mine", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/ShiftRequests/Submit", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/team-scope", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/api/shift-requests/apply", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/Announcements", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/announcements", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase) ||
@@ -414,7 +428,6 @@ app.Use(async (ctx, next) =>
                 path.StartsWith("/Users/Create", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/Users/Edit", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/Users/Details", StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith("/Reception/CreateConsent", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/admin/routers", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/admin/locations", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/admin/pending-networks", StringComparison.OrdinalIgnoreCase) ||
@@ -424,7 +437,10 @@ app.Use(async (ctx, next) =>
                 path.Contains("device", StringComparison.OrdinalIgnoreCase);
             var isNotice = path.StartsWith("/Announcements", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/announcements", StringComparison.OrdinalIgnoreCase);
-            if (sensitive || (!HttpMethods.IsGet(ctx.Request.Method) && !isNotice &&
+            var isOwnShiftRequest = path.Equals("/ShiftRequests/Mine", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/ShiftRequests/Submit", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/api/shift-requests/apply", StringComparison.OrdinalIgnoreCase);
+            if (sensitive || (!HttpMethods.IsGet(ctx.Request.Method) && !isNotice && !isOwnShiftRequest &&
                 !path.StartsWith("/Account/Logout", StringComparison.OrdinalIgnoreCase) &&
                 !path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase) &&
                 !path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase)))

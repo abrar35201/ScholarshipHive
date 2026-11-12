@@ -13,54 +13,6 @@ public class ReceptionController : Controller
 {
     private readonly AppDbContext _db;
     public ReceptionController(AppDbContext db) => _db = db;
-    [HttpGet("/Reception/CreateConsent")]
-    public async Task<IActionResult> CreateConsent(int? visitorId)
-    {
-        var visitor = visitorId.HasValue ? await _db.VisitorRecords.FindAsync(visitorId.Value) : null;
-        if (visitorId.HasValue && visitor is null) return NotFound();
-        ViewBag.Visitor = visitor;
-        return View(new ReceptionConsent {
-            VisitorRecordId = visitor?.Id,
-            ClientFullName = visitor?.FullName ?? "",
-            PhoneNumber = visitor?.Contact ?? "",
-            QualificationDetails = visitor?.Qualification ?? "",
-            CounselorName = visitor?.Counsellor ?? ""
-        });
-    }
-
-    [HttpPost("/Reception/CreateConsent"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateConsent(ReceptionConsent form)
-    {
-        if (!ModelState.IsValid || form.TotalPackageFee < 0)
-        {
-            if (form.TotalPackageFee < 0) ModelState.AddModelError(nameof(form.TotalPackageFee), "Fee cannot be negative.");
-            return View(form);
-        }
-        if (form.VisitorRecordId.HasValue && !await _db.VisitorRecords.AnyAsync(v => v.Id == form.VisitorRecordId.Value))
-            return BadRequest("Linked visitor does not exist.");
-        var record = new ReceptionConsent {
-            VisitorRecordId = form.VisitorRecordId,
-            ClientFullName = form.ClientFullName.Trim(), FamilyName = form.FamilyName,
-            Gender = form.Gender, DomicileCity = form.DomicileCity, CnicNumber = form.CnicNumber,
-            PhoneNumber = form.PhoneNumber, PassportNumber = form.PassportNumber,
-            FullAddress = form.FullAddress, QualificationDetails = form.QualificationDetails,
-            PolicyVariant = form.PolicyVariant, TotalPackageFee = form.TotalPackageFee,
-            CounselorName = form.CounselorName, Status = "Draft",
-            CreatedByUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
-        };
-        _db.ReceptionConsents.Add(record); await _db.SaveChangesAsync();
-        TempData["Success"] = "Consent draft saved.";
-        return Redirect("/Reception/Consents");
-    }
-    [HttpGet("/Reception/PrintConsent/{id:int}")]
-    public async Task<IActionResult> PrintConsent(int id)
-    {
-        var consent=await _db.ReceptionConsents.FindAsync(id);
-        return consent == null ? NotFound() : View(consent);
-    }
-    [HttpGet("/Reception/Consents")]
-    public async Task<IActionResult> Consents() => View(await _db.ReceptionConsents
-       .OrderByDescending(c => c.CreatedAt).Take(200).ToListAsync());
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = "Receptionist,Admin,SuperAdmin,Owner")]
     public async Task<IActionResult> RegisterVisitor(string fullName, string contact, string? email,

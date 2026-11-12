@@ -6,10 +6,12 @@
     // Web login is Admin-only, so any authenticated session here is always an Admin.
     var isAuthed = User.Identity?.IsAuthenticated == true;
     var isReception = User.IsInRole("Receptionist");
+    var isEmployee = User.IsInRole("Employee");
+    var isPrimaryAdmin = User.IsInRole("Admin") && string.Equals(User.Identity?.Name, "admin", StringComparison.OrdinalIgnoreCase);
     var isAuditor = User.IsInRole("Auditor");
     var isDepartmentHead = User.IsInRole("HeadOfCounselors") || User.IsInRole("HeadOfMarketing") || User.IsInRole("HeadOfProcessing");
     var isCountry = User.IsInRole("CountryHead");
-    var homeController = isReception ? "Reception" : isDepartmentHead ? "TeamScope" : isAuditor ? "ActivityLog" : "Home";
+    var homeController = isEmployee ? "ShiftRequests" : isReception ? "Reception" : isDepartmentHead ? "TeamScope" : isAuditor ? "ActivityLog" : "Home";
     var activeRouterCount = isAuthed ? await Db.AllowedRouters.CountAsync(r => r.IsActive) : 0;
     // The notification bell's count — real pending work, not decorative: unapproved
     // self-registrations plus networks a device tried but nobody's approved yet.
@@ -17,7 +19,7 @@
     var pendingNetworksCount = isAuthed ? await Db.PendingNetworks.CountAsync() : 0;
     var pendingLeavesCount = isAuthed ? await Db.LeaveRequests.CountAsync(l => l.Status == "Pending") : 0;
     var pendingShiftsCount = isAuthed ? await Db.ShiftChangeRequests.CountAsync(x => x.Status == "Pending") : 0;
-    var notificationCount = isReception || isDepartmentHead ? 0 : pendingApprovals + pendingNetworksCount + pendingLeavesCount + pendingShiftsCount;
+    var notificationCount = isReception || isDepartmentHead || isEmployee ? 0 : pendingApprovals + pendingNetworksCount + pendingLeavesCount + pendingShiftsCount;
     var meInitials = isAuthed
         ? string.Concat((User.Identity!.Name ?? "?").Split(' ', '.', '_').Where(w => w.Length > 0).Select(w => w[0])).ToUpper()
         : "";
@@ -42,12 +44,16 @@
         <div class="app-shell">
             <div class="sidebar-backdrop" data-sidebar-close hidden></div>
             <aside class="sidebar" id="app-sidebar" aria-label="Main navigation">
-                <a class="brand" asp-controller="@homeController" asp-action="Index" aria-label="ScholarshipHive home" style="text-decoration:none;color:inherit">
+                <a class="brand" asp-controller="@homeController" asp-action="@(isEmployee ? "Mine" : "Index")" aria-label="ScholarshipHive home" style="text-decoration:none;color:inherit">
                     <img src="~/images/logo.png" alt="ScholarshipHive" class="brand-mark" />
                     <span class="brand-name">ScholarshipHive</span>
                 </a>
                 <nav class="side-nav">
-                    @if (!isReception && !isDepartmentHead)
+                    @if (isEmployee)
+                    {
+                        <a class="side-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "ShiftRequests" ? "active" : "")" asp-controller="ShiftRequests" asp-action="Mine"><span>My Shift Requests</span></a>
+                    }
+                    @if (!isReception && !isDepartmentHead && !isEmployee)
                     {
                     <a class="side-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")" asp-controller="Home" asp-action="Index">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 3a9 9 0 1 0 6.4 2.6"/><path d="M12 8v4l3 2"/></svg>
@@ -101,12 +107,18 @@
                     @if (isReception)
                     {
                         <a class="side-link" asp-controller="Reception" asp-action="Index"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V5h14v16M9 5V3h6v2M8 9h2M14 9h2M8 13h2M14 13h2M10 21v-4h4v4"/></svg><span>Reception</span></a>
+                        <a class="side-link" asp-controller="ShiftRequests" asp-action="Mine"><span>My Shift Requests</span></a>
                         <a class="side-link" href="/Announcements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h4l10-5v14L7 14H3zM7 14l2 6h3M20 9a4 4 0 0 1 0 6"/></svg><span>Announcements</span></a>
                     }
                     @if (isDepartmentHead)
                     {
                         <a class="side-link" href="/TeamScope"><span>My Department Dashboard</span></a>
+                        <a class="side-link" asp-controller="ShiftRequests" asp-action="Mine"><span>My Shift Requests</span></a>
                         <a class="side-link" href="/Announcements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h4l10-5v14L7 14H3zM7 14l2 6h3M20 9a4 4 0 0 1 0 6"/></svg><span>Announcements</span></a>
+                    }
+                    @if (!isReception && !isDepartmentHead && !isEmployee && !isPrimaryAdmin)
+                    {
+                        <a class="side-link" asp-controller="ShiftRequests" asp-action="Mine"><span>My Shift Requests</span></a>
                     }
                 </nav>
                 <div class="routerbox">
@@ -132,13 +144,13 @@
                     <button type="button" class="menu-toggle" aria-label="Open navigation menu" aria-controls="app-sidebar" aria-expanded="false">
                         <span></span><span></span><span></span>
                     </button>
-                    <form class="search" method="get" action="@(isReception ? "/Reception" : isDepartmentHead ? "/TeamScope" : "/Users")">
+                    <form class="search" method="get" action="@(isEmployee ? "/ShiftRequests/Mine" : isReception ? "/Reception" : isDepartmentHead ? "/TeamScope" : "/Users")">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                        <input type="search" name="q" value="@(isDepartmentHead ? (string?)ViewBag.SearchQuery : "")" placeholder="@(isDepartmentHead ? "Search your department by name or username" : "Search a person by name or username")" />
+                        <input type="search" name="q" value="@(isDepartmentHead ? (string?)ViewBag.SearchQuery : "")" placeholder="@(isEmployee ? "My shift requests" : isDepartmentHead ? "Search your department by name or username" : "Search a person by name or username")" />
                     </form>
                     <div class="tright">
                         <span class="mono" id="topClock" style="font-size:12.5px;color:var(--mute)"></span>
-                        <a class="iconbtn" asp-controller="@(isReception || isDepartmentHead ? "Announcements" : "Notifications")" asp-action="Index" aria-label="Notifications" title="@(isReception || isDepartmentHead ? "Department announcements" : notificationCount.ToString() + " pending item(s)")">
+                        <a class="iconbtn" asp-controller="@(isEmployee ? "ShiftRequests" : isReception || isDepartmentHead ? "Announcements" : "Notifications")" asp-action="@(isEmployee ? "Mine" : "Index")" aria-label="@(isEmployee ? "My shift requests" : "Notifications")" title="@(isEmployee ? "My shift requests" : isReception || isDepartmentHead ? "Department announcements" : notificationCount.ToString() + " pending item(s)")">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
                             @if (notificationCount > 0)
                             {

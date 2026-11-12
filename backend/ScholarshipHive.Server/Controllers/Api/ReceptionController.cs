@@ -28,45 +28,6 @@ public class ReceptionController : ControllerBase
     private readonly AppDbContext _db;
     private readonly RealtimeNotifier _realtime;
     public ReceptionController(AppDbContext db, RealtimeNotifier realtime) { _db = db; _realtime = realtime; }
-    [HttpGet("consents")]
-    public async Task<IActionResult> Consents() => Ok(await _db.ReceptionConsents
-        .OrderByDescending(c => c.CreatedAt).Take(100).ToListAsync());
-    [HttpPost("consents")]
-    public async Task<IActionResult> CreateConsent([FromBody] ReceptionConsent input)
-    {
-        if (string.IsNullOrWhiteSpace(input.ClientFullName))
-            return BadRequest(new { message = "Client name required." });
-        if (input.TotalPackageFee < 0) return BadRequest(new { message = "Invalid package fee." });
-        if (input.VisitorRecordId.HasValue && !await _db.VisitorRecords.AnyAsync(v => v.Id == input.VisitorRecordId.Value))
-            return BadRequest(new { message = "Visitor record not found." });
-        var consent = new ReceptionConsent
-        {
-            VisitorRecordId = input.VisitorRecordId,
-            ClientFullName = input.ClientFullName.Trim(), FamilyName = input.FamilyName,
-            Gender = input.Gender, DomicileCity = input.DomicileCity,
-            CnicNumber = input.CnicNumber, PhoneNumber = input.PhoneNumber,
-            PassportNumber = input.PassportNumber, FullAddress = input.FullAddress,
-            QualificationDetails = input.QualificationDetails, PolicyVariant = input.PolicyVariant,
-            TotalPackageFee = input.TotalPackageFee, CounselorName = input.CounselorName,
-            Status = "Draft", CreatedByUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
-        };
-        _db.ReceptionConsents.Add(consent);
-        await _db.SaveChangesAsync();
-        await _realtime.NotifyAsync("consents");
-        return Ok(new { consent.Id, message = "Consent draft saved. No email was sent." });
-    }
-    [HttpPost("consents/{id:int}/signed")]
-    public async Task<IActionResult> MarkConsentSigned(int id)
-    {
-        var consent = await _db.ReceptionConsents.FindAsync(id);
-        if (consent == null) return NotFound();
-        if (consent.Status == "Signed") return Conflict(new { message = "Already marked signed." });
-        consent.Status = "Signed"; consent.SignedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-        await _realtime.NotifyAsync("consents");
-        return Ok(new { consent.Id, consent.Status });
-    }
-
     [HttpGet("visitors")]
     public async Task<IActionResult> List() => Ok(await _db.VisitorRecords
         .OrderByDescending(v => v.CheckInTime).Take(100).ToListAsync());

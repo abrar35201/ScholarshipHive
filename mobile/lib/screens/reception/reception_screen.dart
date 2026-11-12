@@ -5,7 +5,6 @@ import '../../core/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../account/change_credentials_screen.dart';
 import '../leave/leave_request_screen.dart';
-import 'consent_screen.dart';
 import '../announcements/announcements_screen.dart';
 import '../shift/shift_request_screen.dart';
 
@@ -129,10 +128,9 @@ class _ReceptionScreenState extends State<ReceptionScreen> {
         OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => LeaveRequestScreen(username: provider.currentUser?.username ?? ''))),
           icon: const Icon(Icons.event_note), label: const Text('Apply for Leave')),
+        OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShiftRequestScreen())),
+          icon: const Icon(Icons.schedule_outlined), label: const Text('My Shift Requests')),
         if (_error != null) Padding(padding: const EdgeInsets.all(10), child: Text(_error!, style: const TextStyle(color: Colors.red))),
-        OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => const ReceptionConsentScreen())),
-          icon: const Icon(Icons.description_outlined), label: const Text('Consent Studio')),
         const SizedBox(height: 14),
         Text('Visitor Log' , style: Theme.of(context).textTheme.titleMedium),
         for (final v in _visitors) Card(
@@ -141,19 +139,15 @@ class _ReceptionScreenState extends State<ReceptionScreen> {
           leading: const CircleAvatar(child: Icon(Icons.person_outline)),
           title: Text('${v['fullName'] ?? ''}'),
           subtitle: Text(
-            "${v['contact'] ?? ''}  •  ${v['inquiryType'] ?? 'Walk-in'}\n${v['checkInTime'] ?? ''}",
+            "${v['contact'] ?? ''}  •  ${v['inquiryType'] ?? 'Walk-in'} · ${v['country'] ?? ''} · ${v['program'] ?? ''}\nIn: ${v['checkInTime'] ?? ''}\nOut: ${v['checkOutTime'] ?? 'Currently inside'}\n${v['qualification'] ?? ''} ${v['counsellor'] ?? ''} ${v['remarks'] ?? ''}",
           ),
           isThreeLine: true,
           trailing: PopupMenuButton<String>(
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'consent', child: Text('Create consent draft')),
               if (v['checkOutTime'] == null) const PopupMenuItem(value: 'checkout', child: Text('Check out visitor')),
             ],
             onSelected: (action) {
               if (action == 'checkout') { _checkout(v['id'] as int); }
-              if (action == 'consent') {
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReceptionConsentScreen(visitor: Map<String,dynamic>.from(v as Map))));
-              }
             },
           ),
         )),

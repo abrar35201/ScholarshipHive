@@ -4,6 +4,7 @@ import '../../core/api_config.dart';
 import '../../providers/app_provider.dart';
 import '../announcements/announcements_screen.dart';
 import '../account/change_credentials_screen.dart';
+import '../shift/shift_request_screen.dart';
 
 class DepartmentTeamScreen extends StatefulWidget {
   const DepartmentTeamScreen({super.key});
@@ -79,6 +80,7 @@ class _DepartmentTeamScreenState extends State<DepartmentTeamScreen> {
   }
   @override Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('My Department'), actions: [
+      IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShiftRequestScreen())), icon: const Icon(Icons.schedule_outlined), tooltip: 'My Shift Requests'),
       IconButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AnnouncementsScreen())),
         icon: const Icon(Icons.campaign_outlined), tooltip: 'Announcements'),
       IconButton(onPressed: () => Navigator.of(context).push(

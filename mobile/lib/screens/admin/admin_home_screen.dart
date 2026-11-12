@@ -8,6 +8,7 @@ import '../../models/user.dart';
 import '../account/change_credentials_screen.dart';
 import 'ai_assistant_screen.dart';
 import '../announcements/announcements_screen.dart';
+import '../shift/shift_request_screen.dart';
 import 'shift_requests_screen.dart';
 import 'tabs/analytics_tab.dart';
 import 'tabs/leaves_tab.dart';
@@ -403,6 +404,15 @@ class _AdminDrawer extends StatelessWidget {
                       },
                     ),
                   const Divider(height: 1),
+                  if (context.read<AppProvider>().currentUser?.username.toLowerCase() != 'admin') ListTile(
+                    leading: const Icon(Icons.schedule_outlined, color: AppColors.inkMuted),
+                    title: const Text('My Shift Requests'),
+                    onTap: () {
+                      final nav = Navigator.of(context);
+                      nav.pop();
+                      Future<void>.delayed(Duration.zero, () => nav.push(MaterialPageRoute(builder: (_) => const ShiftRequestScreen())));
+                    },
+                  ),
                   if (isAdmin) ListTile(
                     leading: const Icon(Icons.pending_actions_outlined, color: AppColors.inkMuted),
                     title: const Text('Shift Requests'),

@@ -29,6 +29,7 @@ public class AccountController : Controller
     {
         if (User.Identity?.IsAuthenticated == true)
         {
+            if (User.IsInRole("Employee")) return RedirectToAction("Mine", "ShiftRequests");
             if (User.IsInRole("Receptionist")) return RedirectToAction("Index", "Reception");
             if (User.IsInRole("Auditor")) return RedirectToAction("Index", "ActivityLog");
             if ((User.IsInRole("HeadOfCounselors") || User.IsInRole("HeadOfMarketing") || User.IsInRole("HeadOfProcessing"))) return RedirectToAction("Index", "TeamScope");
@@ -52,7 +53,7 @@ public class AccountController : Controller
             return View(model);
         }
 
-        // This web portal is Admin-only — Employees use the mobile app instead.
+        // Employees receive a narrowly scoped web session for their own shift requests.
         var normalizedUsername = model.Username.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u =>
             u.Username.ToLower() == normalizedUsername && u.IsActive);
@@ -90,7 +91,7 @@ public class AccountController : Controller
             return View(model);
         }
 
-        if (!AccessRules.IsBroadManager(user.Role) && user.Role is not (UserRole.HeadOfProcessing or UserRole.HeadOfCounselors or UserRole.HeadOfMarketing or UserRole.Receptionist))
+        if (user.Role != UserRole.Employee && !AccessRules.IsBroadManager(user.Role) && user.Role is not (UserRole.HeadOfProcessing or UserRole.HeadOfCounselors or UserRole.HeadOfMarketing or UserRole.Receptionist))
         {
             model.Error = "This web portal is for administrators only. Please use the ScholarshipHive mobile app instead.";
             return View(model);
@@ -110,7 +111,7 @@ public class AccountController : Controller
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
-        return RedirectToAction("Index", user.Role == UserRole.Receptionist ? "Reception" :
+        return user.Role == UserRole.Employee ? RedirectToAction("Mine", "ShiftRequests") : RedirectToAction("Index", user.Role == UserRole.Receptionist ? "Reception" :
             user.Role == UserRole.Auditor ? "ActivityLog" :
             AccessRules.IsDepartmentHead(user.Role) ? "TeamScope" : "Home");
     }

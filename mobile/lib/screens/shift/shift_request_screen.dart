@@ -1,56 +1,88 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/api_config.dart';
+import '../../providers/app_provider.dart';
+
 class ShiftRequestScreen extends StatefulWidget {
-  final String username;
-  const ShiftRequestScreen({super.key, this.username = ''});
-  @override State<ShiftRequestScreen> createState()=>_ShiftRequestScreenState();
+  const ShiftRequestScreen({super.key});
+  @override State<ShiftRequestScreen> createState() => _ShiftRequestScreenState();
 }
+
 class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
-  late final _username=TextEditingController(text:widget.username);
-  final _password=TextEditingController(); final _reason=TextEditingController();
-  final _form=GlobalKey<FormState>();
-  TimeOfDay _start=const TimeOfDay(hour:9,minute:30), _end=const TimeOfDay(hour:17,minute:30);
-  int _shift=0; bool _busy=false; bool _hidePassword=true; String? _message;
-  @override void dispose(){_username.dispose();_password.dispose();_reason.dispose();super.dispose();}
-  String _format(TimeOfDay t)=>'${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}:00';
-  Future<void> _pick(bool start) async {
-    final t=await showTimePicker(context:context,initialTime:start?_start:_end);
-    if(t!=null)setState((){if(start){_start=t;}else{_end=t;}});
+  final _reason = TextEditingController();
+  final _form = GlobalKey<FormState>();
+  TimeOfDay _start = const TimeOfDay(hour: 9, minute: 30);
+  TimeOfDay _end = const TimeOfDay(hour: 17, minute: 30);
+  int _shift = 0;
+  bool _busy = false;
+  String? _message;
+  List<dynamic> _requests = [];
+
+  @override void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
+  @override void dispose() { _reason.dispose(); super.dispose(); }
+
+  String _time(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
+  String _shiftName(dynamic value) => switch (value) { 1 || 'Night' => 'Night', 2 || 'Internship' => 'Internship', _ => 'Day' };
+  String _date(dynamic value) {
+    if (value == null) return '—';
+    final parsed = DateTime.tryParse('$value')?.toLocal();
+    return parsed == null ? '$value' : '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _load() async {
+    try {
+      final result = await context.read<AppProvider>().api.getList('${ApiConfig.baseUrl}/shift-requests/mine');
+      if (mounted) setState(() { _requests = result; _message = null; });
+    } catch (e) { if (mounted) setState(() => _message = '$e'); }
+  }
+
   Future<void> _submit() async {
-    if(!_form.currentState!.validate())return;
-    setState((){_busy=true;_message=null;});
-    try{
-      await Dio().post('${ApiConfig.baseUrl}/shift-requests/apply',data:{
-        'username':_username.text.trim(),'password':_password.text,
-        'shiftType':_shift,'start':_format(_start),'end':_format(_end),'reason':_reason.text.trim(),
+    if (!_form.currentState!.validate()) return;
+    setState(() { _busy = true; _message = null; });
+    try {
+      await context.read<AppProvider>().api.post('${ApiConfig.baseUrl}/shift-requests/apply', {
+        'shiftType': _shift, 'start': _time(_start), 'end': _time(_end), 'reason': _reason.text.trim(),
       });
-      if(mounted)setState(()=>_message='Shift request sent for admin approval.');
-    }on DioException catch(e){if(mounted)setState(()=>_message='${e.response?.data ?? e.message}');}
-    finally{if(mounted)setState(()=>_busy=false);}
+      _reason.clear();
+      if (mounted) setState(() => _message = 'Shift request submitted. Status: Pending.');
+      await _load();
+    } catch (e) { if (mounted) setState(() => _message = '$e'); }
+    finally { if (mounted) setState(() => _busy = false); }
   }
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Request Custom Shift')),
-    body:SingleChildScrollView(padding:const EdgeInsets.all(20),child:Form(key:_form,child:Column(
-      crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      const Text('Apply from anywhere — this does not check you in or bypass office Wi-Fi.'),
-      TextFormField(controller:_username,decoration:const InputDecoration(labelText:'Username'),
-        validator:(v)=>v==null||v.trim().isEmpty?'Required':null),
-      TextFormField(controller:_password,obscureText:_hidePassword,
-        decoration:InputDecoration(labelText:'Password',suffixIcon:IconButton(
-          tooltip:_hidePassword?'Show password':'Hide password',
-          icon:Icon(_hidePassword?Icons.visibility_outlined:Icons.visibility_off_outlined),
-          onPressed:()=>setState(()=>_hidePassword=!_hidePassword),
-        )),
-        validator:(v)=>v==null||v.isEmpty?'Required':null),
-      DropdownButtonFormField<int>(initialValue:_shift,decoration:const InputDecoration(labelText:'Shift Type'),
-        items:const[DropdownMenuItem(value:0,child:Text('Day')),DropdownMenuItem(value:1,child:Text('Night')),
-          DropdownMenuItem(value:2,child:Text('Internship'))],onChanged:(v)=>setState(()=>_shift=v??0)),
-      Row(children:[Expanded(child:TextButton(onPressed:()=>_pick(true),child:Text('Start ${_format(_start)}'))),
-        Expanded(child:TextButton(onPressed:()=>_pick(false),child:Text('End ${_format(_end)}')))]),
-      TextFormField(controller:_reason,maxLines:3,decoration:const InputDecoration(labelText:'Reason'),
-        validator:(v)=>v==null||v.trim().isEmpty?'Reason required':null),
-      const SizedBox(height:16),FilledButton(onPressed:_busy?null:_submit,child:const Text('Send for Approval')),
-      if(_message!=null)Text(_message!),
-    ]))));
+
+  Future<void> _pick(bool start) async {
+    final picked = await showTimePicker(context: context, initialTime: start ? _start : _end);
+    if (picked != null) setState(() { if (start) { _start = picked; } else { _end = picked; } });
+  }
+
+  @override Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('My Shift Requests'), actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))]),
+    body: RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.all(16), children: [
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Form(key: _form, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('Request a custom shift', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(initialValue: _shift, decoration: const InputDecoration(labelText: 'Shift Type'),
+          items: const [DropdownMenuItem(value: 0, child: Text('Day')), DropdownMenuItem(value: 1, child: Text('Night')), DropdownMenuItem(value: 2, child: Text('Internship'))], onChanged: (v) => setState(() => _shift = v ?? 0)),
+        Row(children: [Expanded(child: TextButton(onPressed: () => _pick(true), child: Text('Start ${_time(_start)}'))), Expanded(child: TextButton(onPressed: () => _pick(false), child: Text('End ${_time(_end)}')))]),
+        TextFormField(controller: _reason, maxLines: 3, maxLength: 1000, decoration: const InputDecoration(labelText: 'Reason'), validator: (v) => v == null || v.trim().isEmpty ? 'Reason required' : null),
+        const SizedBox(height: 8), FilledButton(onPressed: _busy ? null : _submit, child: const Text('Send for Approval')),
+      ])))),
+      if (_message != null) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(_message!)),
+      Text('Request history', style: Theme.of(context).textTheme.titleLarge),
+      if (_requests.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text('No shift requests yet.')),
+      for (final raw in _requests) Builder(builder: (context) {
+        final request = Map<String, dynamic>.from(raw as Map);
+        final status = '${request['status'] ?? 'Pending'}';
+        final color = status == 'Approved' ? Colors.green : status == 'Rejected' ? Colors.red : Colors.orange;
+        return Card(child: ListTile(isThreeLine: true,
+          title: Text('${_shiftName(request['shiftType'])} · ${request['start'] ?? ''}–${request['end'] ?? ''}'),
+          subtitle: Text('${request['reason'] ?? ''}\nSubmitted ${_date(request['createdAt'])}\n${request['reviewedAt'] == null ? 'Decision date pending' : 'Decision ${_date(request['reviewedAt'])}'}${status == 'Rejected' && request['adminNote'] != null ? '\nReason: ${request['adminNote']}' : ''}'),
+          trailing: Text(status, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+        ));
+      }),
+    ])),
+  );
 }

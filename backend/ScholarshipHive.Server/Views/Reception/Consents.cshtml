@@ -1,7 +1,0 @@
-@model List<ScholarshipHive.Server.Models.ReceptionConsent>
-@{ ViewData["Title"] = "Reception Consents"; }
-<div class="page-header"><div><h2>Consent Records</h2><p>Drafts and signed consent records.</p></div></div>
-<a href="/Reception/CreateConsent" class="btn btn-primary mb-3">New consent draft</a>
-<div class="sh-card p-3"><table class="table table-hover"><thead><tr><th>Client</th><th>Policy</th><th>Fee</th><th>Created</th><th>Status</th><th>Document</th></tr></thead><tbody>
-@foreach (var c in Model) { <tr><td>@c.ClientFullName</td><td>@c.PolicyVariant</td><td>@c.TotalPackageFee</td><td>@c.CreatedAt.ToLocalTime()</td><td>@c.Status</td><td><a href="/Reception/PrintConsent/@c.Id" target="_blank" rel="noopener">Print / Save PDF</a></td></tr> }
-</tbody></table></div>

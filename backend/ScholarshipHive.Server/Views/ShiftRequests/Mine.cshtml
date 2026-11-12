@@ -1,0 +1,19 @@
+@model List<ScholarshipHive.Server.Models.ShiftChangeRequest>
+@using ScholarshipHive.Server.Models
+@{ ViewData["Title"] = "My Shift Requests"; }
+<div class="page-header"><div><h2>My Shift Requests</h2><p>Review your request status and decision date.</p></div></div>
+@if (TempData["Error"] != null) { <div class="alert alert-danger">@TempData["Error"]</div> }
+<div class="sh-card p-3 mb-3">
+    <h3 class="h5">Request a custom shift</h3>
+    <form asp-action="Submit" method="post" class="row g-3">
+        <div class="col-md-4"><label class="form-label" for="shiftType">Shift type</label><select id="shiftType" name="shiftType" class="form-select"><option value="Day">Day</option><option value="Night">Night</option><option value="Internship">Internship</option></select></div>
+        <div class="col-md-4"><label class="form-label" for="start">Start</label><input id="start" name="start" type="time" class="form-control" required /></div>
+        <div class="col-md-4"><label class="form-label" for="end">End</label><input id="end" name="end" type="time" class="form-control" required /></div>
+        <div class="col-12"><label class="form-label" for="reason">Reason</label><textarea id="reason" name="reason" maxlength="1000" class="form-control" required></textarea></div>
+        <div class="col-12"><button class="btn btn-primary" type="submit">Send for approval</button></div>
+    </form>
+</div>
+<div class="sh-card p-3 table-responsive"><table class="table table-hover"><thead><tr><th>Requested shift</th><th>Reason</th><th>Submitted</th><th>Status</th><th>Decision date</th><th>Rejection reason</th></tr></thead><tbody>
+@foreach (var r in Model) { <tr><td>@r.ShiftType · @r.Start.ToString("HH:mm")–@r.End.ToString("HH:mm")</td><td>@r.Reason</td><td>@r.CreatedAt.ToLocalTime()</td><td><strong>@r.Status</strong></td><td>@(r.ReviewedAt?.ToLocalTime().ToString() ?? "—")</td><td>@(r.Status == "Rejected" ? r.AdminNote : "—")</td></tr> }
+@if (Model.Count == 0) { <tr><td colspan="6" class="text-muted">No shift requests yet.</td></tr> }
+</tbody></table></div>

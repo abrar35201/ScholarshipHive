@@ -4,6 +4,7 @@ import '../../core/api_config.dart';
 import '../../providers/app_provider.dart';
 import '../announcements/announcements_screen.dart';
 import '../account/change_credentials_screen.dart';
+import '../shift/shift_request_screen.dart';
 
 /// Organization overview without owner-only security, roles, device or router controls.
 class CountryHeadScreen extends StatefulWidget {
@@ -14,7 +15,6 @@ class _CountryHeadScreenState extends State<CountryHeadScreen> {
   Map<String,dynamic> _stats = {};
   List<dynamic> _team = [];
   List<dynamic> _visitors = [];
-  List<dynamic> _consents = [];
   String? _error;
   @override void initState() {
     super.initState();
@@ -26,8 +26,7 @@ class _CountryHeadScreenState extends State<CountryHeadScreen> {
       final stats = await api.get('${ApiConfig.baseUrl}/admin/dashboard');
       final team = await api.getList('${ApiConfig.baseUrl}/admin/users');
       final visitors = await api.getList('${ApiConfig.baseUrl}/reception/visitors');
-      final consents = await api.getList('${ApiConfig.baseUrl}/reception/consents');
-      if (mounted) setState(() { _stats = stats; _team = team; _visitors=visitors; _consents=consents; _error = null; });
+      if (mounted) setState(() { _stats = stats; _team = team; _visitors=visitors; _error = null; });
     } catch(e) { if (mounted) setState(() => _error = '$e'); }
   }
   @override Widget build(BuildContext context) => Scaffold(
@@ -43,6 +42,7 @@ class _CountryHeadScreenState extends State<CountryHeadScreen> {
     body: RefreshIndicator(onRefresh:_load, child: ListView(padding:const EdgeInsets.all(16),children:[
       if(_error != null) Text(_error!,style:const TextStyle(color:Colors.red)),
       Text('Organization-wide live overview',style:Theme.of(context).textTheme.titleLarge),
+      OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShiftRequestScreen())), icon: const Icon(Icons.schedule_outlined), label: const Text('My Shift Requests')),
       const SizedBox(height:12),
       Wrap(spacing:8,runSpacing:8,children:[
         for(final k in {'Total users':'totalUsers','On the floor':'checkedInNow',
@@ -69,11 +69,6 @@ class _CountryHeadScreenState extends State<CountryHeadScreen> {
         return ListTile(title:Text('${visitor['fullName'] ?? ''}'),subtitle:Text('${visitor['country'] ?? ''} · ${visitor['program'] ?? ''}'));
       }),
       const SizedBox(height:12),
-      Text('Consent records (read only)',style:Theme.of(context).textTheme.titleMedium),
-      for(final raw in _consents.take(30)) Builder(builder:(context){
-        final consent=Map<String,dynamic>.from(raw as Map);
-        return ListTile(title:Text('${consent['clientFullName'] ?? ''}'),subtitle:Text('${consent['policyVariant'] ?? ''} · ${consent['status'] ?? ''}'));
-      }),
     ])),
   );
 }

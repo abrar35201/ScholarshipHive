@@ -7,6 +7,7 @@ import '../account/change_credentials_screen.dart';
 import '../attendance/my_attendance_screen.dart';
 import '../announcements/announcements_screen.dart';
 import '../report/report_screen.dart';
+import '../shift/shift_request_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -198,6 +199,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: const Icon(Icons.event_available_outlined, color: AppColors.primaryDark, size: 19),
                       label: const Text('View my attendance', style: TextStyle(color: AppColors.primaryDark, fontWeight: FontWeight.w600)),
                     ),
+                    if (user != null && !(user.role == 'Admin' && user.username.toLowerCase() == 'admin')) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                        onPressed: () => _navigateTo(const ShiftRequestScreen()),
+                        icon: const Icon(Icons.schedule_outlined),
+                        label: const Text('My Shift Requests'),
+                      ),
+                    ],
                   ],
                 ),
               ),

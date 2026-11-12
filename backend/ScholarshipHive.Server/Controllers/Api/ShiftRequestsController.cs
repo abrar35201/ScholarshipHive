@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ScholarshipHive.Server.Data;
@@ -11,8 +10,6 @@ using ScholarshipHive.Server.Services;
 namespace ScholarshipHive.Server.Controllers.Api;
 public sealed class ShiftChangeInput
 {
-    [Required] public string Username { get; set; } = "";
-    [Required] public string Password { get; set; } = "";
     public ShiftType ShiftType { get; set; }
     public TimeOnly Start { get; set; }
     public TimeOnly End { get; set; }
@@ -23,22 +20,22 @@ public sealed class ShiftDecisionInput { [Required] public string Decision {get;
 [Route("api/shift-requests")]
 public class ShiftRequestsController : ControllerBase
 {
-    private readonly AppDbContext _db;private readonly IPasswordHasher<User> _hasher;
+    private readonly AppDbContext _db;
     private readonly RealtimeNotifier _realtime;private readonly FcmPushService _fcm;
-    public ShiftRequestsController(AppDbContext db,IPasswordHasher<User> hasher,RealtimeNotifier realtime,FcmPushService fcm)
-    { _db=db;_hasher=hasher;_realtime=realtime;_fcm=fcm; }
-    private async Task<User?> Verify(string username,string password)
+    public ShiftRequestsController(AppDbContext db,RealtimeNotifier realtime,FcmPushService fcm)
+    { _db=db;_realtime=realtime;_fcm=fcm; }
+    private async Task<User?> CurrentRequester()
     {
-        var n=username.Trim().ToLowerInvariant();
-        var u=await _db.Users.FirstOrDefaultAsync(x=>x.Username.ToLower()==n&&x.IsActive&&x.IsApproved&&(x.Role != UserRole.Admin || x.Username.ToLower() != "admin"));
-        return u==null||u.LockedUntil>DateTime.UtcNow||_hasher.VerifyHashedPassword(u,u.PasswordHash,password)==PasswordVerificationResult.Failed?null:u;
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return null;
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == id && x.IsActive && x.IsApproved);
+        return user != null && !AccessRules.IsPrimaryAdmin(user) ? user : null;
     }
-    [HttpPost("apply"),AllowAnonymous]
+    [HttpPost("apply"),Authorize(AuthenticationSchemes=JwtBearerDefaults.AuthenticationScheme)]
     public async Task<IActionResult> Apply([FromBody] ShiftChangeInput input)
     {
         if(string.IsNullOrWhiteSpace(input.Reason)||input.Reason.Length>1000||input.Start==input.End) return BadRequest(new{message="Valid times and a reason are required."});
-        var user=await Verify(input.Username,input.Password);
-        if(user==null)return Unauthorized(new{message="Invalid credentials or account not approved."});
+        var user=await CurrentRequester();
+        if(user==null)return Forbid();
         if(await _db.ShiftChangeRequests.AnyAsync(x=>x.UserId==user.Id&&x.Status=="Pending"))return Conflict(new{message="You already have a pending shift request."});
         var entry=new ShiftChangeRequest{UserId=user.Id,ShiftType=input.ShiftType,Start=input.Start,End=input.End,Reason=input.Reason.Trim()};
         _db.ShiftChangeRequests.Add(entry);await _db.SaveChangesAsync();await _realtime.NotifyAsync("shift-requests");
@@ -46,11 +43,12 @@ public class ShiftRequestsController : ControllerBase
         foreach(var t in tokens)await _fcm.SendNotificationAsync(t,"Shift approval requested",$"{user.Username} requested {input.Start:HH:mm}–{input.End:HH:mm}.");
         return Ok(new{entry.Id,entry.Status});
     }
-    [HttpPost("status"),AllowAnonymous]
-    public async Task<IActionResult> Status([FromBody] ShiftChangeInput input)
+    [HttpGet("mine"),Authorize(AuthenticationSchemes=JwtBearerDefaults.AuthenticationScheme)]
+    public async Task<IActionResult> Mine()
     {
-        var u=await Verify(input.Username,input.Password);if(u==null)return Unauthorized();
-        return Ok(await _db.ShiftChangeRequests.Where(x=>x.UserId==u.Id).OrderByDescending(x=>x.CreatedAt).Take(30).ToListAsync());
+        var user=await CurrentRequester();if(user==null)return Forbid();
+        return Ok(await _db.ShiftChangeRequests.AsNoTracking().Where(x=>x.UserId==user.Id).OrderByDescending(x=>x.CreatedAt).Take(100)
+            .Select(x=>new{x.Id,x.ShiftType,x.Start,x.End,x.Reason,x.Status,x.CreatedAt,x.ReviewedAt,x.AdminNote}).ToListAsync());
     }
     [HttpGet("admin")]
     [Authorize(AuthenticationSchemes=JwtBearerDefaults.AuthenticationScheme,Roles="SuperAdmin,Admin,Owner,CountryHead")]
@@ -64,12 +62,18 @@ public class ShiftRequestsController : ControllerBase
         var request=await _db.ShiftChangeRequests.Include(x=>x.User).FirstOrDefaultAsync(x=>x.Id==id);
         if(request==null)return NotFound();
         if(int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),out var reviewerId) && request.UserId==reviewerId) return Forbid();
-        if(request.Status!="Pending")return Conflict(new{message="Already reviewed."});
-        request.Status=input.Decision;request.ReviewedAt=DateTime.UtcNow;
-        request.ReviewedByUserId=int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        request.AdminNote=input.AdminNote?.Trim();
-        if(input.Decision=="Approved"&&request.User!=null){request.User.ShiftStartTime=request.Start;request.User.ShiftEndTime=request.End;request.User.ShiftType=request.ShiftType;}
-        await _db.SaveChangesAsync();await _realtime.NotifyAsync("users");await _realtime.NotifyAsync("shift-requests");
+        var reviewedAt=DateTime.UtcNow;
+        await using var transaction=await _db.Database.BeginTransactionAsync();
+        var changed=await _db.ShiftChangeRequests.Where(x=>x.Id==id&&x.Status=="Pending")
+            .ExecuteUpdateAsync(setters=>setters.SetProperty(x=>x.Status,input.Decision)
+                .SetProperty(x=>x.ReviewedAt,(DateTime?)reviewedAt)
+                .SetProperty(x=>x.ReviewedByUserId,(int?)reviewerId)
+                .SetProperty(x=>x.AdminNote,input.AdminNote==null?null:input.AdminNote.Trim()));
+        if(changed==0)return Conflict(new{message="Already reviewed."});
+        if(input.Decision=="Approved"&&request.User!=null){request.User.ShiftStartTime=request.Start;request.User.ShiftEndTime=request.End;request.User.ShiftType=request.ShiftType;await _db.SaveChangesAsync();}
+        await transaction.CommitAsync();
+        request.Status=input.Decision;request.ReviewedAt=reviewedAt;request.ReviewedByUserId=reviewerId;request.AdminNote=input.AdminNote?.Trim();
+        await _realtime.NotifyAsync("users");await _realtime.NotifyAsync("shift-requests");
         if(!string.IsNullOrEmpty(request.User?.FcmToken))await _fcm.SendNotificationAsync(request.User.FcmToken,"Shift request "+request.Status,request.AdminNote??"Your shift request was reviewed.");
         return Ok(new{request.Id,request.Status});
     }
