@@ -393,7 +393,15 @@ app.Use(async (ctx, next) =>
         var path = ctx.Request.Path.Value ?? "";
         if (actor.Role == UserRole.Employee)
         {
-            var allowed = path.Equals("/ShiftRequests/Mine", StringComparison.OrdinalIgnoreCase) ||
+            // Only a Calling employee may open the country-form draft workflow.
+            // All its endpoints still independently validate caller scope.
+            var callingFormsPath = actor.Department == EmployeeDepartment.Calling &&
+                (path.Equals("/CallingForms", StringComparison.OrdinalIgnoreCase) ||
+                 path.StartsWith("/CallingForms/", StringComparison.OrdinalIgnoreCase) ||
+                 path.Equals("/api/calling-forms", StringComparison.OrdinalIgnoreCase) ||
+                 path.StartsWith("/api/calling-forms/", StringComparison.OrdinalIgnoreCase));
+            var allowed = callingFormsPath ||
+                path.Equals("/ShiftRequests/Mine", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/ShiftRequests/Submit", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/Account/Logout", StringComparison.OrdinalIgnoreCase);
             if (!allowed)

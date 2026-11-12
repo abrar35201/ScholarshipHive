@@ -84,6 +84,48 @@ public class AttendanceDurationService
             });
     }
 
+    /// Builds one employee's selected-month day breakdown from the same event-based
+    /// calculation used by the admin Hours page. Times are raw activity boundaries,
+    /// not an inferred uninterrupted shift. UTC timestamps are formatted by clients.
+    public async Task<ScholarshipHive.Server.Dtos.DepartmentEmployeeMonthDetailDto> ComputeEmployeeMonthAsync(
+        User employee, int year, int month, DateTime asOfUtc)
+    {
+        var first = new DateOnly(year, month, 1);
+        var last = first.AddMonths(1).AddDays(-1);
+        var daily = await ComputeAsync(employee.Id, first.AddDays(-1), last, asOfUtc);
+        var raw = await _db.LoginHistories
+            .Where(h => h.UserId == employee.Id &&
+                h.Timestamp >= BusinessDayStartUtc(first) &&
+                h.Timestamp < BusinessDayStartUtc(last.AddDays(1)))
+            .OrderBy(h => h.Timestamp).ToListAsync();
+        var groups = raw.GroupBy(h => DateTimeExtensions.PakistanDateOf(h.Timestamp))
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var result = new ScholarshipHive.Server.Dtos.DepartmentEmployeeMonthDetailDto
+        {
+            UserId = employee.Id, Name = employee.FullName,
+            Department = employee.Department.ToString(), Year = year, Month = month
+        };
+        for (var day = first; day <= last; day = day.AddDays(1))
+        {
+            var d = daily.GetValueOrDefault(day, new DayDuration(0, false));
+            groups.TryGetValue(day, out var events);
+            result.Days.Add(new ScholarshipHive.Server.Dtos.DepartmentEmployeeDayDetailDto
+            {
+                Date = day, Minutes = d.Minutes, GapMinutes = d.GapMinutes,
+                StillOpen = d.StillOpen,
+                FirstCheckInUtc = events?.Where(e => e.EventType == LoginHistoryEvent.CheckIn)
+                    .Select(e => (DateTime?)e.Timestamp).FirstOrDefault(),
+                LastCheckOutUtc = events?.Where(e => e.EventType == LoginHistoryEvent.CheckOut)
+                    .Select(e => (DateTime?)e.Timestamp).LastOrDefault()
+            });
+        }
+        result.TotalMinutes = result.Days.Sum(d => d.Minutes);
+        result.TotalGapMinutes = result.Days.Sum(d => d.GapMinutes);
+        result.DaysWorked = result.Days.Count(d => d.Minutes > 0);
+        result.Days.Reverse();
+        return result;
+    }
+
     private static Dictionary<DateOnly, DayDuration> PairCycles(List<LoginHistory> history, DateTime asOfUtc)
     {
         var byDay = new Dictionary<DateOnly, DayDuration>();

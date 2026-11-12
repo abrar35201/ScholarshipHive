@@ -774,6 +774,21 @@ namespace ScholarshipHive.Server.Migrations
                     b.ToTable("UserNotices");
                 });
 
+            modelBuilder.Entity("ScholarshipHive.Server.Models.CallingFormEntry", b =>
+                {
+                    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("integer").HasAnnotation("Npgsql:ValueGenerationStrategy", Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                    b.Property<string>("ApplicantName").IsRequired().HasMaxLength(120).HasColumnType("character varying(120)");
+                    b.Property<string>("AnswersJson").IsRequired().HasMaxLength(14000).HasColumnType("character varying(14000)");
+                    b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<int>("CreatedByUserId").HasColumnType("integer");
+                    b.Property<string>("Email").HasMaxLength(150).HasColumnType("character varying(150)");
+                    b.Property<string>("Phone").IsRequired().HasMaxLength(40).HasColumnType("character varying(40)");
+                    b.Property<string>("TemplateId").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)");
+                    b.HasKey("Id");
+                    b.HasIndex("CreatedByUserId", "CreatedAt");
+                    b.ToTable("CallingFormEntries");
+                });
+
             modelBuilder.Entity("ScholarshipHive.Server.Models.VisitorRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -947,6 +962,14 @@ namespace ScholarshipHive.Server.Migrations
                         .IsRequired();
 
                     b.Navigation("Report");
+                });
+
+            modelBuilder.Entity("ScholarshipHive.Server.Models.CallingFormEntry", b =>
+                {
+                    b.HasOne("ScholarshipHive.Server.Models.User", "CreatedByUser")
+                        .WithMany().HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("ScholarshipHive.Server.Models.ShiftChangeRequest", b =>

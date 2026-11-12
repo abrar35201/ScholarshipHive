@@ -1,3 +1,4 @@
+import 'department_employee_month_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/api_config.dart';
@@ -60,10 +61,7 @@ class _DepartmentMonthHoursScreenState extends State<DepartmentMonthHoursScreen>
         if (_loading) const LinearProgressIndicator(),
         if (_summary != null) ...[
           Text('${_summary!['department'] ?? 'Department'} · ${_summary!['employees']?.length ?? 0} employees', style: Theme.of(context).textTheme.titleMedium),
-          Row(children: [
-            Expanded(child: Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Department hours'), const SizedBox(height: 5), Text(_hours(_summary!['totalMinutes']), style: Theme.of(context).textTheme.titleLarge)])))),
-            Expanded(child: Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Employee days'), const SizedBox(height: 5), Text('${_summary!['totalEmployeeDays'] ?? 0}', style: Theme.of(context).textTheme.titleLarge)])))),
-          ]),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('Select an employee to view their individual daily attendance and working hours.')),
           const SizedBox(height: 8),
           if (employees.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('No active employees are assigned to this department.'))),
           for (final raw in employees) Builder(builder: (context) {
@@ -72,8 +70,15 @@ class _DepartmentMonthHoursScreenState extends State<DepartmentMonthHoursScreen>
             return Card(child: ListTile(
               leading: const CircleAvatar(child: Icon(Icons.person_outline)),
               title: Text(name),
-              subtitle: Text('${employee['department'] ?? ''} · ${employee['daysWorked'] ?? 0} days worked'),
-              trailing: Text(_hours(employee['totalMinutes']), style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text('${employee['department'] ?? ''}'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => DepartmentEmployeeMonthScreen(
+                  employeeId: (employee['userId'] as num).toInt(),
+                  name: name,
+                  initialMonth: _month,
+                ),
+              )),
             ));
           }),
         ],

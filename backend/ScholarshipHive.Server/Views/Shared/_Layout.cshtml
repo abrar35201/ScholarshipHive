@@ -7,6 +7,7 @@
     var isAuthed = User.Identity?.IsAuthenticated == true;
     var isReception = User.IsInRole("Receptionist");
     var isEmployee = User.IsInRole("Employee");
+    var isCallingEmployee = isEmployee && int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var callerId) && await Db.Users.AnyAsync(u => u.Id == callerId && u.Role == UserRole.Employee && u.Department == EmployeeDepartment.Calling && u.IsActive && u.IsApproved);
     var isPrimaryAdmin = User.IsInRole("Admin") && string.Equals(User.Identity?.Name, "admin", StringComparison.OrdinalIgnoreCase);
     var isAuditor = User.IsInRole("Auditor");
     var isDepartmentHead = User.IsInRole("HeadOfCounselors") || User.IsInRole("HeadOfMarketing") || User.IsInRole("HeadOfProcessing");
@@ -52,6 +53,7 @@
                     @if (isEmployee)
                     {
                         <a class="side-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "ShiftRequests" ? "active" : "")" asp-controller="ShiftRequests" asp-action="Mine"><span>My Shift Requests</span></a>
+                        @if(isCallingEmployee){<a class="side-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "CallingForms" ? "active" : "")" href="/CallingForms"><span>Calling Forms</span></a>}
                     }
                     @if (!isReception && !isDepartmentHead && !isEmployee)
                     {
@@ -113,7 +115,6 @@
                     @if (isDepartmentHead)
                     {
                         <a class="side-link" href="/TeamScope"><span>My Department Dashboard</span></a>
-                        <a class="side-link" asp-controller="ShiftRequests" asp-action="Mine"><span>My Shift Requests</span></a>
                         <a class="side-link" href="/Announcements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h4l10-5v14L7 14H3zM7 14l2 6h3M20 9a4 4 0 0 1 0 6"/></svg><span>Announcements</span></a>
                     }
                     @if (!isReception && !isDepartmentHead && !isEmployee && !isPrimaryAdmin)

@@ -1,0 +1,11 @@
+@using System.Text.Json
+@using ScholarshipHive.Server.Services
+@using ScholarshipHive.Server.Models
+@model CallingFormEntry
+@{ViewData["Title"]="Saved Application";var template=(CallingFormTemplate?)ViewBag.Template;
+var answers=JsonSerializer.Deserialize<Dictionary<string,string>>(Model.AnswersJson)??new();}
+<div class="page-header"><div><h2>@Model.ApplicantName</h2><p>@(template?.Name??Model.TemplateId) — saved @Model.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</p></div><a class="btn btn-outline-secondary" href="/CallingForms">Back</a></div>
+<div class="sh-card p-3"><dl class="row"><dt class="col-sm-4">Phone</dt><dd class="col-sm-8">@Model.Phone</dd><dt class="col-sm-4">Email</dt><dd class="col-sm-8">@Model.Email</dd>
+@foreach(var field in answers){<dt class="col-sm-4">@field.Key</dt><dd class="col-sm-8">@field.Value</dd>}
+</dl>@if(template!=null){<a class="btn btn-outline-primary" target="_blank" rel="noopener" href="/CallingForms/Template/@template.Id">Review original PDF</a>}</div>
+<p class="text-muted small mt-3">This is an internal draft and is not a signed copy of the original consent agreement.</p>

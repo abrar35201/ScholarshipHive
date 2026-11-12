@@ -50,3 +50,27 @@ public class DepartmentMonthlyEmployeeHoursDto
     public int TotalMinutes { get; set; }
     public int DaysWorked { get; set; }
 }
+
+
+/// Employee-specific month detail; always supplied after server-side department scoping.
+public class DepartmentEmployeeMonthDetailDto
+{
+    public int UserId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public int Year { get; set; }
+    public int Month { get; set; }
+    public int TotalMinutes { get; set; }
+    public int TotalGapMinutes { get; set; }
+    public int DaysWorked { get; set; }
+    public List<DepartmentEmployeeDayDetailDto> Days { get; set; } = new();
+}
+public class DepartmentEmployeeDayDetailDto
+{
+    public DateOnly Date { get; set; }
+    public int Minutes { get; set; }
+    public int GapMinutes { get; set; }
+    public bool StillOpen { get; set; }
+    public DateTime? FirstCheckInUtc { get; set; }
+    public DateTime? LastCheckOutUtc { get; set; }
+}

@@ -63,6 +63,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<ShiftChangeRequest> ShiftChangeRequests => Set<ShiftChangeRequest>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<VisitorRecord> VisitorRecords => Set<VisitorRecord>();
+    public DbSet<CallingFormEntry> CallingFormEntries => Set<CallingFormEntry>();
     public DbSet<ReceptionConsent> ReceptionConsents => Set<ReceptionConsent>();
     public DbSet<Attendance> Attendances => Set<Attendance>();
     public DbSet<Report> Reports => Set<Report>();
@@ -93,6 +94,8 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<LeaveRequest>().HasIndex(l => new { l.UserId, l.AppliedAt });
         modelBuilder.Entity<VisitorRecord>().HasIndex(v => v.CheckInTime);
+        modelBuilder.Entity<CallingFormEntry>().HasIndex(f => new { f.CreatedByUserId, f.CreatedAt });
+        modelBuilder.Entity<CallingFormEntry>().HasOne(f => f.CreatedByUser).WithMany().HasForeignKey(f => f.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<ReceptionConsent>().HasIndex(c => c.CreatedAt);
 
         modelBuilder.Entity<User>()

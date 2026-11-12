@@ -1,0 +1,13 @@
+@using ScholarshipHive.Server.Services
+@{ViewData["Title"]="Fill Calling Form";var template=(CallingFormTemplate)ViewBag.Template;var fields=(IReadOnlyList<string>)ViewBag.Fields;}
+<div class="page-header"><div><h2>@template.Name</h2><p>Client application data — Calling team only</p></div><a class="btn btn-outline-secondary" href="/CallingForms">Back</a></div>
+<div class="alert alert-info">Please review the <a target="_blank" rel="noopener" href="/CallingForms/Template/@template.Id">original @template.Country PDF</a> for the exact fee, refund, service and signature terms. Saving this form is a draft, not signed consent.</div>
+<form method="post" action="/CallingForms/New/@template.Id" class="sh-card p-3">
+@Html.AntiForgeryToken()
+<div class="row g-3">
+<div class="col-md-6"><label class="form-label">Applicant full name *</label><input name="applicantName" maxlength="120" minlength="2" required class="form-control" /></div>
+<div class="col-md-6"><label class="form-label">Contact phone *</label><input name="phone" maxlength="40" minlength="7" required class="form-control" /></div>
+<div class="col-md-6"><label class="form-label">Email</label><input name="email" type="email" maxlength="150" class="form-control" /></div>
+@foreach(var field in fields){var label=string.Concat(field.Select(c=>char.IsUpper(c)?" "+c:c.ToString())).Trim();<div class="col-md-6"><label class="form-label" for="answer_@field">@label</label><input id="answer_@field" name="answer_@field" maxlength="350" class="form-control" /></div>}
+</div><button class="btn btn-primary mt-3" type="submit">Save application draft</button>
+</form>

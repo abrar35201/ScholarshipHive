@@ -65,6 +65,25 @@ public class TeamScopeApiController:ControllerBase
             TotalMinutes=rows.Sum(x=>x.TotalMinutes),TotalEmployeeDays=rows.Sum(x=>x.DaysWorked),Employees=rows
         });
     }
+    [HttpGet("employees/{id:int}/monthly-hours")]
+    public async Task<IActionResult> EmployeeMonthHours(int id, [FromQuery]int? year, [FromQuery]int? month)
+    {
+        var dep = await Scope(); if (!dep.HasValue) return Forbid();
+        var employee = await _db.Users.FirstOrDefaultAsync(u => u.Id == id &&
+            u.Role == UserRole.Employee && u.IsActive &&
+            (dep.Value == EmployeeDepartment.MarketingAndInterns ?
+                (u.Department == EmployeeDepartment.Marketing || u.Department == EmployeeDepartment.Interns) :
+                u.Department == dep.Value));
+        if (employee == null) return NotFound();
+        var today = DateTimeExtensions.PakistanToday();
+        var y = year.GetValueOrDefault(today.Year);
+        var m = month.GetValueOrDefault(today.Month);
+        if (y < 2 || y > 9999 || m < 1 || m > 12) return BadRequest(new { message = "Invalid month." });
+        var selected = new DateOnly(y, m, 1);
+        var current = new DateOnly(today.Year, today.Month, 1);
+        if (selected > current) selected = current;
+        return Ok(await _duration.ComputeEmployeeMonthAsync(employee, selected.Year, selected.Month, DateTime.UtcNow));
+    }
     public sealed class NewTeamEmployee
     {
         [Required,MinLength(3),MaxLength(50)] public string Username {get;set;}="";

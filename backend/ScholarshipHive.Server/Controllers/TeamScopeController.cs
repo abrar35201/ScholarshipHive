@@ -82,6 +82,27 @@ public class TeamScopeController : Controller
         ViewBag.CurrentMonth=currentMonth.ToString("yyyy-MM",CultureInfo.InvariantCulture);
         return View(model);
     }
+    [HttpGet("/TeamScope/Hours/{id:int}")]
+    public async Task<IActionResult> EmployeeHours(int id, string? month)
+    {
+        var department = await MyDepartment(); if (!department.HasValue) return Forbid();
+        var employee = await _db.Users.FirstOrDefaultAsync(u => u.Id == id &&
+            u.Role == UserRole.Employee && u.IsActive &&
+            (department.Value == EmployeeDepartment.MarketingAndInterns ?
+                (u.Department == EmployeeDepartment.Marketing || u.Department == EmployeeDepartment.Interns) :
+                u.Department == department.Value));
+        if (employee == null) return NotFound();
+        var today = DateTimeExtensions.PakistanToday();
+        var current = new DateOnly(today.Year, today.Month, 1);
+        var selected = DateOnly.TryParseExact(month, "yyyy-MM", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var parsed) ? new DateOnly(parsed.Year, parsed.Month, 1) : current;
+        if (selected > current || selected.Year < 2) selected = current;
+        var model = await _duration.ComputeEmployeeMonthAsync(employee, selected.Year, selected.Month, DateTime.UtcNow);
+        ViewBag.CurrentMonth = current.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        ViewBag.PreviousMonth = selected.AddMonths(-1).ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        ViewBag.NextMonth = selected.AddMonths(1).ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        return View("EmployeeHours", model);
+    }
     [HttpGet("/TeamScope/Records/{id:int}")]
     public async Task<IActionResult> Records(int id)
     {

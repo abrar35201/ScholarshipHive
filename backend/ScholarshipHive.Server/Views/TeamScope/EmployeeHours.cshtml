@@ -1,0 +1,36 @@
+@using ScholarshipHive.Server.Dtos
+@model DepartmentEmployeeMonthDetailDto
+@{
+    ViewData["Title"] = "Employee Monthly Attendance";
+    var monthKey = $"{Model.Year:D4}-{Model.Month:D2}";
+    string Fmt(int mins) => $"{mins / 60}h {mins % 60}m";
+    string Time(DateTime? utc) => utc.HasValue ? utc.Value.AddHours(5).ToString("hh:mm tt") + " PKT" : "—";
+}
+<div class="page-header">
+    <div><h2>@Model.Name</h2><p>@Model.Department · @(new DateTime(Model.Year,Model.Month,1).ToString("MMMM yyyy"))</p></div>
+    <a class="btn btn-outline-secondary" href="/TeamScope/Hours?month=@monthKey">← All employees</a>
+</div>
+<div class="sh-card p-3 mb-3">
+  <form method="get" action="/TeamScope/Hours/@Model.UserId" class="d-flex gap-2 align-items-end flex-wrap">
+    <div><label class="form-label" for="month">Month</label><input id="month" name="month" type="month" value="@monthKey" max="@ViewBag.CurrentMonth" class="form-control"/></div>
+    <button class="btn btn-primary" type="submit">View month</button>
+    <a class="btn btn-outline-secondary" href="/TeamScope/Hours/@Model.UserId?month=@ViewBag.PreviousMonth">Previous</a>
+    @if(monthKey != (string)ViewBag.CurrentMonth){<a class="btn btn-outline-secondary" href="/TeamScope/Hours/@Model.UserId?month=@ViewBag.NextMonth">Next</a>}
+  </form>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-sm-4"><div class="sh-card p-3"><div class="text-muted">Total working hours</div><h3>@Fmt(Model.TotalMinutes)</h3></div></div>
+  <div class="col-sm-4"><div class="sh-card p-3"><div class="text-muted">Days worked</div><h3>@Model.DaysWorked</h3></div></div>
+  <div class="col-sm-4"><div class="sh-card p-3"><div class="text-muted">Gap time</div><h3>@Fmt(Model.TotalGapMinutes)</h3></div></div>
+</div>
+<div class="sh-card p-3 table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Date (PKT business day)</th><th>First check-in</th><th>Last check-out</th><th>Worked</th><th>Gap</th><th>Status</th></tr></thead>
+    <tbody>
+    @foreach(var day in Model.Days){
+      <tr><td>@day.Date.ToString("dd MMM yyyy")</td><td>@Time(day.FirstCheckInUtc)</td><td>@Time(day.LastCheckOutUtc)</td><td>@Fmt(day.Minutes)</td><td>@Fmt(day.GapMinutes)</td><td>@(day.StillOpen?"Open":"—")</td></tr>
+    }
+    </tbody>
+  </table>
+  <p class="text-muted small mb-0">Times show recorded attendance events. Worked and gap totals use the existing attendance duration rules; day boundaries follow Pakistan's 7 AM business day.</p>
+</div>
