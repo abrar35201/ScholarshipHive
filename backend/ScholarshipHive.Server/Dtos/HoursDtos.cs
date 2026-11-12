@@ -31,3 +31,22 @@ public class HoursDetailDto
     public int TotalGapMinutes { get; set; }
     public List<HoursDayDto> Days { get; set; } = new();
 }
+
+public class DepartmentMonthlyHoursDto
+{
+    public int Year { get; set; }
+    public int Month { get; set; }
+    public string Department { get; set; } = string.Empty;
+    public int TotalMinutes { get; set; }
+    public int TotalEmployeeDays { get; set; }
+    public List<DepartmentMonthlyEmployeeHoursDto> Employees { get; set; } = new();
+}
+
+public class DepartmentMonthlyEmployeeHoursDto
+{
+    public int UserId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public int TotalMinutes { get; set; }
+    public int DaysWorked { get; set; }
+}

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ScholarshipHive.Server.Data;
+using ScholarshipHive.Server.Dtos;
 using ScholarshipHive.Server.Models;
 using ScholarshipHive.Server.Services;
 namespace ScholarshipHive.Server.Controllers.Api;
@@ -15,8 +16,8 @@ namespace ScholarshipHive.Server.Controllers.Api;
 [Authorize(AuthenticationSchemes="Bearer,Cookies",Roles="HeadOfMarketing,HeadOfProcessing,HeadOfCounselors")]
 public class TeamScopeApiController:ControllerBase
 {
-    private readonly AppDbContext _db; private readonly IPasswordHasher<User> _hasher; private readonly RealtimeNotifier _rt;
-    public TeamScopeApiController(AppDbContext db,IPasswordHasher<User> hasher,RealtimeNotifier rt){_db=db;_hasher=hasher;_rt=rt;}
+    private readonly AppDbContext _db; private readonly IPasswordHasher<User> _hasher; private readonly RealtimeNotifier _rt; private readonly AttendanceDurationService _duration;
+    public TeamScopeApiController(AppDbContext db,IPasswordHasher<User> hasher,RealtimeNotifier rt,AttendanceDurationService duration){_db=db;_hasher=hasher;_rt=rt;_duration=duration;}
     private async Task<EmployeeDepartment?> Scope()
     {
         if(!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),out var id))return null;
@@ -36,6 +37,34 @@ public class TeamScopeApiController:ControllerBase
     private bool IsBrowserNavigation => Request.Headers.Accept.ToString().Contains("text/html", StringComparison.OrdinalIgnoreCase) &&
         !Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
     private static bool Allowed(EmployeeDepartment scope, EmployeeDepartment actual) => scope == EmployeeDepartment.MarketingAndInterns ? actual is EmployeeDepartment.Marketing or EmployeeDepartment.Interns : actual == scope;
+    [HttpGet("monthly-hours")]
+    public async Task<ActionResult<DepartmentMonthlyHoursDto>> MonthlyHours([FromQuery]int? year,[FromQuery]int? month)
+    {
+        if (IsBrowserNavigation) return Redirect("/TeamScope/Hours");
+        var department=await Scope();if(!department.HasValue)return Forbid();
+        var today=DateTimeExtensions.PakistanToday();
+        var selectedYear=year.GetValueOrDefault(today.Year);
+        var selectedMonth=month.GetValueOrDefault(today.Month);
+        if(selectedYear<2||selectedYear>DateTime.MaxValue.Year||selectedMonth is <1 or >12)return BadRequest(new{message="Choose a valid month and year."});
+        var currentMonth=new DateOnly(today.Year,today.Month,1);
+        var selectedDate=new DateOnly(selectedYear,selectedMonth,1);
+        if(selectedDate>currentMonth)selectedDate=currentMonth;
+        var employees=await _db.Users.Where(u=>u.Role==UserRole.Employee&&u.IsActive&&
+            (department.Value==EmployeeDepartment.MarketingAndInterns ?
+                (u.Department==EmployeeDepartment.Marketing||u.Department==EmployeeDepartment.Interns) : u.Department==department.Value))
+            .OrderBy(u=>u.FullName).ToListAsync();
+        var totals=await _duration.ComputeMonthManyAsync(employees.Select(u=>u.Id).ToList(),selectedDate.Year,selectedDate.Month,DateTime.UtcNow);
+        var rows=employees.Select(u=>new DepartmentMonthlyEmployeeHoursDto
+        {
+            UserId=u.Id,Name=u.FullName,Department=u.Department.ToString(),
+            TotalMinutes=totals[u.Id].TotalMinutes,DaysWorked=totals[u.Id].DaysWorked
+        }).OrderByDescending(x=>x.TotalMinutes).ThenBy(x=>x.Name).ToList();
+        return Ok(new DepartmentMonthlyHoursDto
+        {
+            Year=selectedDate.Year,Month=selectedDate.Month,Department=department.Value.ToString(),
+            TotalMinutes=rows.Sum(x=>x.TotalMinutes),TotalEmployeeDays=rows.Sum(x=>x.DaysWorked),Employees=rows
+        });
+    }
     public sealed class NewTeamEmployee
     {
         [Required,MinLength(3),MaxLength(50)] public string Username {get;set;}="";

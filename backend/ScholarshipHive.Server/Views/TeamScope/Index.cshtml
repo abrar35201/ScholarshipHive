@@ -7,7 +7,7 @@
 <div class="row g-3 mb-3">
 @foreach (var metric in new (string Name, object Count)[]{("Team members",ViewBag.TeamTotal),("Check-ins today",ViewBag.CountToday),("Currently present",ViewBag.PresentNow),("Reports filed",ViewBag.ReportsToday),("Pending leaves",ViewBag.PendingLeaves),("Pending shifts",ViewBag.PendingShifts)}) {
 <div class="col-sm-6 col-lg-4"><div class="sh-card p-3"><div class="text-muted">@metric.Name</div><h2>@metric.Count</h2></div></div>}
-</div><div class="d-flex gap-2 mb-3"><a class="btn btn-outline-primary" href="/Announcements">Department announcements</a><a class="btn btn-outline-secondary" href="/TeamScope">Refresh dashboard</a></div>
+</div><div class="d-flex flex-wrap gap-2 mb-3"><a class="btn btn-outline-primary" href="/Announcements">Department announcements</a><a class="btn btn-outline-secondary" href="/TeamScope">Refresh dashboard</a><a class="btn btn-primary" href="/TeamScope/Hours">Monthly employee hours</a></div>
 <div class="sh-card p-3 mb-3"><h5>Add employee to @ViewBag.Department</h5><p class="text-muted mb-2">Use this web form to create a department employee. The /api/team-scope endpoints are for the mobile app.</p><form action="/TeamScope/Add" method="post" data-web-head-route="v3" class="row g-2">
 @Html.AntiForgeryToken()
 <div class="col-md-3"><label>Username</label><input name="username" class="form-control" minlength="3" maxlength="50" required /></div>

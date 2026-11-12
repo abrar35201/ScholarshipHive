@@ -2,8 +2,10 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using ScholarshipHive.Server.Data;
+using ScholarshipHive.Server.Dtos;
 using ScholarshipHive.Server.Models;
 using ScholarshipHive.Server.Services;
 namespace ScholarshipHive.Server.Controllers;
@@ -13,7 +15,8 @@ public class TeamScopeController : Controller
     private readonly AppDbContext _db;
     private readonly IPasswordHasher<User> _hasher;
     private readonly RealtimeNotifier _realtime;
-    public TeamScopeController(AppDbContext db, IPasswordHasher<User> hasher, RealtimeNotifier realtime) { _db=db; _hasher=hasher; _realtime=realtime; }
+    private readonly AttendanceDurationService _duration;
+    public TeamScopeController(AppDbContext db, IPasswordHasher<User> hasher, RealtimeNotifier realtime, AttendanceDurationService duration) { _db=db; _hasher=hasher; _realtime=realtime; _duration=duration; }
     private async Task<EmployeeDepartment?> MyDepartment()
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return null;
@@ -49,6 +52,35 @@ public class TeamScopeController : Controller
         ViewBag.PendingLeaves = await _db.LeaveRequests.CountAsync(l=>ids.Contains(l.UserId) && l.Status=="Pending");
         ViewBag.PendingShifts = await _db.ShiftChangeRequests.CountAsync(x=>ids.Contains(x.UserId) && x.Status=="Pending");
         return View(await team.OrderBy(u=>u.FullName).ToListAsync());
+    }
+    [HttpGet("/TeamScope/Hours")]
+    public async Task<IActionResult> Hours(string? month)
+    {
+        var department=await MyDepartment();if(!department.HasValue)return Forbid();
+        var today=DateTimeExtensions.PakistanToday();
+        var selectedMonth=DateOnly.TryParseExact(month,"yyyy-MM",CultureInfo.InvariantCulture,DateTimeStyles.None,out var parsed)
+            ? new DateOnly(parsed.Year,parsed.Month,1) : new DateOnly(today.Year,today.Month,1);
+        var currentMonth=new DateOnly(today.Year,today.Month,1);
+        if(selectedMonth>currentMonth||selectedMonth.Year==1&&selectedMonth.Month==1)selectedMonth=currentMonth;
+        var employees=await _db.Users.Where(u=>u.Role==UserRole.Employee&&u.IsActive&&
+            (department.Value==EmployeeDepartment.MarketingAndInterns ?
+                (u.Department==EmployeeDepartment.Marketing||u.Department==EmployeeDepartment.Interns) : u.Department==department.Value))
+            .OrderBy(u=>u.FullName).ToListAsync();
+        var totals=await _duration.ComputeMonthManyAsync(employees.Select(u=>u.Id).ToList(),selectedMonth.Year,selectedMonth.Month,DateTime.UtcNow);
+        var rows=employees.Select(u=>new DepartmentMonthlyEmployeeHoursDto
+        {
+            UserId=u.Id,Name=u.FullName,Department=u.Department.ToString(),
+            TotalMinutes=totals[u.Id].TotalMinutes,DaysWorked=totals[u.Id].DaysWorked
+        }).OrderByDescending(x=>x.TotalMinutes).ThenBy(x=>x.Name).ToList();
+        var model=new DepartmentMonthlyHoursDto
+        {
+            Year=selectedMonth.Year,Month=selectedMonth.Month,Department=department.Value.ToString(),
+            TotalMinutes=rows.Sum(x=>x.TotalMinutes),TotalEmployeeDays=rows.Sum(x=>x.DaysWorked),Employees=rows
+        };
+        ViewBag.PreviousMonth=selectedMonth.AddMonths(-1).ToString("yyyy-MM",CultureInfo.InvariantCulture);
+        ViewBag.NextMonth=selectedMonth.AddMonths(1).ToString("yyyy-MM",CultureInfo.InvariantCulture);
+        ViewBag.CurrentMonth=currentMonth.ToString("yyyy-MM",CultureInfo.InvariantCulture);
+        return View(model);
     }
     [HttpGet("/TeamScope/Records/{id:int}")]
     public async Task<IActionResult> Records(int id)

@@ -1,0 +1,30 @@
+@using ScholarshipHive.Server.Dtos
+@model DepartmentMonthlyHoursDto
+@{
+    ViewData["Title"] = "Monthly Department Hours";
+    var monthKey = $"{Model.Year:D4}-{Model.Month:D2}";
+    string Fmt(int minutes) => $"{minutes / 60}h {minutes % 60}m";
+}
+<div class="page-header">
+    <div><h2>Monthly Employee Hours</h2><p>@Model.Department · @(new DateTime(Model.Year, Model.Month, 1).ToString("MMMM yyyy"))</p></div>
+    <a class="btn btn-outline-secondary" href="/TeamScope">Back to department</a>
+</div>
+<div class="sh-card p-3 mb-3">
+    <form method="get" action="/TeamScope/Hours" class="d-flex flex-wrap align-items-end gap-2">
+        <div><label class="form-label" for="month">Month</label><input id="month" type="month" name="month" value="@monthKey" max="@ViewBag.CurrentMonth" class="form-control" /></div>
+        <button class="btn btn-primary" type="submit">View month</button>
+        <a class="btn btn-outline-secondary" href="/TeamScope/Hours?month=@ViewBag.PreviousMonth">Previous month</a>
+        @if (monthKey != (string)ViewBag.CurrentMonth) { <a class="btn btn-outline-secondary" href="/TeamScope/Hours?month=@ViewBag.NextMonth">Next month</a> }
+    </form>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-lg-4"><div class="sh-card p-3"><div class="text-muted">Department hours</div><h2>@Fmt(Model.TotalMinutes)</h2></div></div>
+    <div class="col-sm-6 col-lg-4"><div class="sh-card p-3"><div class="text-muted">Employee days worked</div><h2>@Model.TotalEmployeeDays</h2></div></div>
+    <div class="col-sm-6 col-lg-4"><div class="sh-card p-3"><div class="text-muted">Employees</div><h2>@Model.Employees.Count</h2></div></div>
+</div>
+<div class="sh-card p-3 table-responsive">
+    <table class="table table-hover align-middle"><thead><tr><th>Employee</th><th>Department</th><th>Working hours</th><th>Days worked</th></tr></thead><tbody>
+    @foreach (var employee in Model.Employees) { <tr><td>@employee.Name</td><td>@employee.Department</td><td>@Fmt(employee.TotalMinutes)</td><td>@employee.DaysWorked</td></tr> }
+    @if (Model.Employees.Count == 0) { <tr><td colspan="4" class="text-muted text-center py-4">No active employees are assigned to this department.</td></tr> }
+    </tbody></table>
+</div>

@@ -65,6 +65,25 @@ public class AttendanceDurationService
         return byUser;
     }
 
+    /// Monthly totals grouped by the service's existing Pakistan business-day keys.
+    /// The prior date is included to pair overnight cycles that finish during the
+    /// first business day of the selected calendar month; only selected-month day
+    /// buckets are returned to callers.
+    public async Task<Dictionary<int, (int TotalMinutes, int DaysWorked)>> ComputeMonthManyAsync(
+        IReadOnlyCollection<int> userIds, int year, int month, DateTime asOfUtc)
+    {
+        var firstDay = new DateOnly(year, month, 1);
+        var lastDay = firstDay.AddMonths(1).AddDays(-1);
+        var daily = await ComputeManyAsync(userIds, firstDay.AddDays(-1), lastDay, asOfUtc);
+        return daily.ToDictionary(
+            entry => entry.Key,
+            entry =>
+            {
+                var workedDays = entry.Value.Where(day => day.Key.Year == year && day.Key.Month == month && day.Value.Minutes > 0).ToArray();
+                return (workedDays.Sum(day => day.Value.Minutes), workedDays.Length);
+            });
+    }
+
     private static Dictionary<DateOnly, DayDuration> PairCycles(List<LoginHistory> history, DateTime asOfUtc)
     {
         var byDay = new Dictionary<DateOnly, DayDuration>();
