@@ -29,7 +29,7 @@ public class AccountController : Controller
     {
         if (User.Identity?.IsAuthenticated == true)
         {
-            if (User.IsInRole("Employee")) return RedirectToAction("Mine", "ShiftRequests");
+            if (User.IsInRole("Employee")) return RedirectToAction("Index", "EmployeeWork");
             if (User.IsInRole("Receptionist")) return RedirectToAction("Index", "Reception");
             if (User.IsInRole("Auditor")) return RedirectToAction("Index", "ActivityLog");
             if ((User.IsInRole("HeadOfCounselors") || User.IsInRole("HeadOfMarketing") || User.IsInRole("HeadOfProcessing"))) return RedirectToAction("Index", "TeamScope");
@@ -111,7 +111,7 @@ public class AccountController : Controller
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
-        return user.Role == UserRole.Employee ? RedirectToAction("Mine", "ShiftRequests") : RedirectToAction("Index", user.Role == UserRole.Receptionist ? "Reception" :
+        return user.Role == UserRole.Employee ? RedirectToAction("Index", "EmployeeWork") : RedirectToAction("Index", user.Role == UserRole.Receptionist ? "Reception" :
             user.Role == UserRole.Auditor ? "ActivityLog" :
             AccessRules.IsDepartmentHead(user.Role) ? "TeamScope" : "Home");
     }

@@ -6,6 +6,7 @@ import '../announcements/announcements_screen.dart';
 import '../account/change_credentials_screen.dart';
 import '../shift/shift_request_screen.dart';
 import 'department_month_hours_screen.dart';
+import '../calling/calling_head_forms_screen.dart';
 
 class DepartmentTeamScreen extends StatefulWidget {
   const DepartmentTeamScreen({super.key});
@@ -67,6 +68,18 @@ class _DepartmentTeamScreenState extends State<DepartmentTeamScreen> {
     }
     name.dispose();username.dispose();password.dispose();
   }
+  Future<void> _resetDevice(int id, String name) async {
+    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Reset employee phone?'),
+      content: Text('Reset the linked phone for $name? Their next attendance login will require their password and approved office Wi-Fi.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reset device'))]));
+    if (confirmed != true || !mounted) return;
+    try {
+      await context.read<AppProvider>().api.post('${ApiConfig.baseUrl}/team-scope/employees/$id/reset-device', {});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee phone reset.')));
+    } catch (e) { if (mounted) setState(() => _error = '$e'); }
+  }
   Future<void> _removeEmployee(int id) async {
     final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('Remove employee from team?'),
@@ -94,6 +107,7 @@ class _DepartmentTeamScreenState extends State<DepartmentTeamScreen> {
     body: RefreshIndicator(onRefresh: _load, child: ListView(padding: const EdgeInsets.all(16), children: [
       if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
       Text('${_summary['department'] ?? 'My'} Department', style: Theme.of(context).textTheme.headlineSmall),
+      if (context.read<AppProvider>().currentUser?.role == 'HeadOfCounselors') Padding(padding: const EdgeInsets.only(top: 12), child: OutlinedButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CallingHeadFormsScreen())), icon: const Icon(Icons.description_outlined), label: const Text('Calling team form records'))),
       const SizedBox(height: 12),
       Wrap(spacing: 10, runSpacing: 10, children: [
         for(final stat in {'Team members':'employees','Checked in today':'checkedInToday','Present now':'presentNow',
@@ -110,10 +124,10 @@ class _DepartmentTeamScreenState extends State<DepartmentTeamScreen> {
         title: Text('${u['fullName'] ?? u['username']}'),
         subtitle: Text('${u['username']} • ${u['department']}'),
         onTap: () => _records(u['id'] as int),
-        trailing: u['isActive'] == true ? IconButton(
-          tooltip: 'Remove employee', icon: const Icon(Icons.person_remove_outlined, color: Colors.red),
-          onPressed: () => _removeEmployee(u['id'] as int)) :
-          const Text('Inactive', style: TextStyle(color: Colors.grey)),
+        trailing: u['isActive'] == true ? PopupMenuButton<String>(
+          tooltip: 'Employee actions',
+          onSelected: (value) { if (value == 'reset') { _resetDevice(u['id'] as int, '${u['fullName'] ?? u['username']}'); } else if (value == 'remove') { _removeEmployee(u['id'] as int); } },
+          itemBuilder: (_) => const [PopupMenuItem(value: 'reset', child: Text('Reset phone device')), PopupMenuItem(value: 'remove', child: Text('Remove employee'))]) : const Text('Inactive', style: TextStyle(color: Colors.grey)),
       )),
     ])),
   );

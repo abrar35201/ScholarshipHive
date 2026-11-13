@@ -95,6 +95,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<LeaveRequest>().HasIndex(l => new { l.UserId, l.AppliedAt });
         modelBuilder.Entity<VisitorRecord>().HasIndex(v => v.CheckInTime);
         modelBuilder.Entity<CallingFormEntry>().HasIndex(f => new { f.CreatedByUserId, f.CreatedAt });
+        modelBuilder.Entity<CallingFormEntry>().HasIndex(f => f.PublicShareTokenHash).IsUnique();
         modelBuilder.Entity<CallingFormEntry>().HasOne(f => f.CreatedByUser).WithMany().HasForeignKey(f => f.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<ReceptionConsent>().HasIndex(c => c.CreatedAt);
 

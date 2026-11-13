@@ -784,8 +784,11 @@ namespace ScholarshipHive.Server.Migrations
                     b.Property<string>("Email").HasMaxLength(150).HasColumnType("character varying(150)");
                     b.Property<string>("Phone").IsRequired().HasMaxLength(40).HasColumnType("character varying(40)");
                     b.Property<string>("TemplateId").IsRequired().HasMaxLength(80).HasColumnType("character varying(80)");
+                    b.Property<DateTime?>("PublicShareCreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("PublicShareTokenHash").HasMaxLength(64).HasColumnType("character varying(64)");
                     b.HasKey("Id");
                     b.HasIndex("CreatedByUserId", "CreatedAt");
+                    b.HasIndex("PublicShareTokenHash").IsUnique();
                     b.ToTable("CallingFormEntries");
                 });
 

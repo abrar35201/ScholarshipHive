@@ -382,6 +382,13 @@ app.Use(async (context, next) =>
 // The database role is read per request so revocation is effective without a fresh login.
 app.Use(async (ctx, next) =>
 {
+    // A signed-in employee may also open a public shared link: it is not an
+    // attendance, management or department API and remains token-only access.
+    if (ctx.Request.Path.StartsWithSegments("/shared/calling-form", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
     if (ctx.User.Identity?.IsAuthenticated == true &&
         int.TryParse(ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var actorId))
     {
@@ -401,6 +408,8 @@ app.Use(async (ctx, next) =>
                  path.Equals("/api/calling-forms", StringComparison.OrdinalIgnoreCase) ||
                  path.StartsWith("/api/calling-forms/", StringComparison.OrdinalIgnoreCase));
             var allowed = callingFormsPath ||
+                path.Equals("/EmployeeWork", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/EmployeeWork/", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/ShiftRequests/Mine", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/ShiftRequests/Submit", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/Account/Logout", StringComparison.OrdinalIgnoreCase);
@@ -412,7 +421,9 @@ app.Use(async (ctx, next) =>
         }
         if (AccessRules.IsDepartmentHead(actor.Role))
         {
-            var allowed = path.StartsWith("/TeamScope", StringComparison.OrdinalIgnoreCase) ||
+            var allowed = path.StartsWith("/CallingHeadForms", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/api/calling-head-forms", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/TeamScope", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/ShiftRequests/Mine", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/ShiftRequests/Submit", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/api/team-scope", StringComparison.OrdinalIgnoreCase) ||

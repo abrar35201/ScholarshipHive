@@ -29,6 +29,18 @@ class _CountryHeadScreenState extends State<CountryHeadScreen> {
       if (mounted) setState(() { _stats = stats; _team = team; _visitors=visitors; _error = null; });
     } catch(e) { if (mounted) setState(() => _error = '$e'); }
   }
+  Future<void> _resetEmployeeDevice(int id, String name) async {
+    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Reset employee phone?'),
+      content: Text('Reset the phone binding for $name? Their next login requires approved office Wi-Fi and password.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reset phone'))]));
+    if (confirmed != true || !mounted) return;
+    try {
+      await context.read<AppProvider>().api.post('${ApiConfig.baseUrl}/country-head/device/employees/$id/reset', {});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Employee phone reset.')));
+    } catch(e) { if (mounted) setState(() => _error = '$e'); }
+  }
   @override Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Country Head · Organization'), actions: [
       IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
@@ -56,11 +68,12 @@ class _CountryHeadScreenState extends State<CountryHeadScreen> {
             ])))),
       ]),
       const SizedBox(height:22),
-      Text('Employee directory (read only)',style:Theme.of(context).textTheme.titleMedium),
+      Text('Employee directory',style:Theme.of(context).textTheme.titleMedium),
       for(final raw in _team) Builder(builder: (context) {
         final u=Map<String,dynamic>.from(raw as Map);
         return Card(child:ListTile(title:Text('${u['fullName'] ?? u['username']}'),
-            subtitle:Text('${u['department'] ?? ''} · ${u['role'] ?? ''}')));
+            subtitle:Text('${u['department'] ?? ''} · ${u['role'] ?? ''}'),
+            trailing: '${u['role'] ?? ''}' == 'Employee' ? IconButton(tooltip: 'Reset employee phone', icon: const Icon(Icons.phonelink_erase_outlined), onPressed: () => _resetEmployeeDevice((u['id'] as num).toInt(), '${u['fullName'] ?? u['username']}')) : null));
       }),
       const SizedBox(height:20),
       Text('Reception visitors (read only)',style:Theme.of(context).textTheme.titleMedium),

@@ -1,0 +1,14 @@
+@using System.Text.Json
+@using ScholarshipHive.Server.Models
+@model CallingFormEntry
+@{ViewData["Title"]="Calling Form"; var answers=JsonSerializer.Deserialize<Dictionary<string,string>>(Model.AnswersJson)??new();}
+<div class="page-header"><div><h2>@Model.ApplicantName</h2><p>@Model.TemplateId · Submitted by @Model.CreatedByUser.FullName</p></div><a href="/CallingHeadForms" class="btn btn-outline-secondary">Back</a></div>
+@if(TempData["Success"]!=null){<div class="alert alert-success">@TempData["Success"]</div>}
+<div class="sh-card p-3"><dl class="row"><dt class="col-sm-4">Phone</dt><dd class="col-sm-8">@Model.Phone</dd><dt class="col-sm-4">Email</dt><dd class="col-sm-8">@Model.Email</dd>
+@foreach(var pair in answers){<dt class="col-sm-4">@pair.Key</dt><dd class="col-sm-8">@pair.Value</dd>}</dl></div>
+<div class="sh-card p-3 mt-3"><h4>Share completed draft</h4><p class="text-muted">Anyone with the generated link can read applicant data, including personal information. Only share with authorized recipients. Generating a new link disables the previous link.</p>
+@if(TempData["NewShareUrl"] is string link){<label for="shareUrl">New link (copy now; it will not be displayed again)</label><input class="form-control mb-2" id="shareUrl" value="@link" readonly /><button class="btn btn-outline-primary mb-2" type="button" onclick="navigator.clipboard.writeText(document.getElementById('shareUrl').value)">Copy link</button><a class="btn btn-success mb-2" target="_blank" rel="noopener noreferrer" href="https://api.whatsapp.com/send?text=@Uri.EscapeDataString(link)">Share via WhatsApp</a>}
+<p>Status: <strong>@(Model.PublicShareTokenHash == null ? "No active link" : "Active link")</strong></p>
+<form method="post" action="/CallingHeadForms/Share/@Model.Id">@Html.AntiForgeryToken()<button class="btn btn-primary" type="submit" onclick="return confirm('Generate a new public link? Previous link will stop working.')">Generate new share link</button></form>
+@if(Model.PublicShareTokenHash != null){<form class="mt-2" method="post" action="/CallingHeadForms/Revoke/@Model.Id">@Html.AntiForgeryToken()<button class="btn btn-outline-danger" type="submit" onclick="return confirm('Revoke the existing public link?')">Revoke current link</button></form>}
+</div><p class="small text-muted mt-3">This shows data saved by an employee, not a signed version of the original country agreement.</p>

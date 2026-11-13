@@ -15,4 +15,8 @@ public class CallingFormEntry
     // Remaining template application fields (never user-supplied field names).
     [Required, MaxLength(14000)] public string AnswersJson { get; set; } = "{}";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // SHA256 of a random 256-bit bearer token, not the raw public link.
+    [MaxLength(64)] public string? PublicShareTokenHash { get; set; }
+    public DateTime? PublicShareCreatedAt { get; set; }
+
 }

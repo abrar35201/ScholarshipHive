@@ -20,6 +20,7 @@ class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
   TimeOfDay _end = const TimeOfDay(hour: 17, minute: 30);
   int _shift = 0;
   bool _busy = false;
+  bool _hidePassword = true;
   String? _message;
   List<dynamic> _requests = [];
 
@@ -86,7 +87,7 @@ class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
       Card(child: Padding(padding: const EdgeInsets.all(16), child: Form(key: _form, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (widget.credentialMode) ...[
           TextFormField(controller: _username, keyboardType: TextInputType.text, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Username'), validator: (v) => v == null || v.trim().isEmpty ? 'Username required' : null),
-          TextFormField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Password'), validator: (v) => v == null || v.isEmpty ? 'Password required' : null),
+          TextFormField(controller: _password, obscureText: _hidePassword, decoration: InputDecoration(labelText: 'Password', suffixIcon: IconButton(tooltip: _hidePassword ? 'Show password' : 'Hide password', icon: Icon(_hidePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined), onPressed: () => setState(() => _hidePassword = !_hidePassword))), validator: (v) => v == null || v.isEmpty ? 'Password required' : null),
           Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: _busy ? null : _load, icon: const Icon(Icons.history), label: const Text('Check My Status'))),
         ],
         Text('Request a custom shift', style: Theme.of(context).textTheme.titleMedium),

@@ -186,4 +186,24 @@ public class TeamScopeApiController:ControllerBase
         await _rt.NotifyAsync("users");
         return Ok(new { message = "Employee removed from active roster. Historical records preserved." });
     }
+    // Department heads may reset only the device binding of their own employees.
+    // Browser cookies never authorize this sensitive mobile action.
+    [HttpPost("employees/{id:int}/reset-device")]
+    public async Task<IActionResult> ResetEmployeeDevice(int id)
+    {
+        if (!await HasVerifiedBearerAsync()) return Unauthorized();
+        var dep = await Scope(); if (!dep.HasValue) return Forbid();
+        var employee = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.Role == UserRole.Employee &&
+            (dep.Value == EmployeeDepartment.MarketingAndInterns ?
+                (u.Department == EmployeeDepartment.Marketing || u.Department == EmployeeDepartment.Interns) : u.Department == dep.Value));
+        if (employee == null) return NotFound();
+        employee.HomeDeviceId = null;
+        employee.LastDeviceId = null;
+        employee.LastDeviceLoginAt = null;
+        employee.FcmToken = null;
+        await _db.SaveChangesAsync();
+        await _rt.NotifyAsync("users");
+        return Ok(new { message = "Device reset. Employee must log in again on their phone using password and approved office Wi-Fi." });
+    }
+
 }

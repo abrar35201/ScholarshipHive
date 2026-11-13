@@ -12,7 +12,7 @@
     var isAuditor = User.IsInRole("Auditor");
     var isDepartmentHead = User.IsInRole("HeadOfCounselors") || User.IsInRole("HeadOfMarketing") || User.IsInRole("HeadOfProcessing");
     var isCountry = User.IsInRole("CountryHead");
-    var homeController = isEmployee ? "ShiftRequests" : isReception ? "Reception" : isDepartmentHead ? "TeamScope" : isAuditor ? "ActivityLog" : "Home";
+    var homeController = isEmployee ? "EmployeeWork" : isReception ? "Reception" : isDepartmentHead ? "TeamScope" : isAuditor ? "ActivityLog" : "Home";
     var activeRouterCount = isAuthed ? await Db.AllowedRouters.CountAsync(r => r.IsActive) : 0;
     // The notification bell's count — real pending work, not decorative: unapproved
     // self-registrations plus networks a device tried but nobody's approved yet.
@@ -45,15 +45,20 @@
         <div class="app-shell">
             <div class="sidebar-backdrop" data-sidebar-close hidden></div>
             <aside class="sidebar" id="app-sidebar" aria-label="Main navigation">
-                <a class="brand" asp-controller="@homeController" asp-action="@(isEmployee ? "Mine" : "Index")" aria-label="ScholarshipHive home" style="text-decoration:none;color:inherit">
+                <a class="brand" asp-controller="@homeController" asp-action="Index" aria-label="ScholarshipHive home" style="text-decoration:none;color:inherit">
                     <img src="~/images/logo.png" alt="ScholarshipHive" class="brand-mark" />
                     <span class="brand-name">ScholarshipHive</span>
                 </a>
                 <nav class="side-nav">
                     @if (isEmployee)
                     {
+                        <a class="side-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "EmployeeWork" ? "active" : "")" href="/EmployeeWork"><span>My Work / Daily Report</span></a>
                         <a class="side-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "ShiftRequests" ? "active" : "")" asp-controller="ShiftRequests" asp-action="Mine"><span>My Shift Requests</span></a>
                         @if(isCallingEmployee){<a class="side-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "CallingForms" ? "active" : "")" href="/CallingForms"><span>Calling Forms</span></a>}
+                    }
+                    @if (User.IsInRole("HeadOfCounselors"))
+                    {
+                        <a class="side-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "CallingHeadForms" ? "active" : "")" href="/CallingHeadForms"><span>Calling Form Records</span></a>
                     }
                     @if (!isReception && !isDepartmentHead && !isEmployee)
                     {

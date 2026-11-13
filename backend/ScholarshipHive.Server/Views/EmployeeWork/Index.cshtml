@@ -1,0 +1,13 @@
+@using ScholarshipHive.Server.Models
+@model List<Report>
+@{ ViewData["Title"]="My Work"; var attendance=(Attendance?)ViewBag.Attendance; var current=attendance?.Report; var calling=(EmployeeDepartment)ViewBag.Department==EmployeeDepartment.Calling; }
+<div class="page-header"><div><h2>My Work — Daily Report</h2><p>Work on the web while attendance hours remain controlled by your phone's approved office Wi-Fi network.</p></div></div>
+@if(TempData["Error"]!=null){<div class="alert alert-danger">@TempData["Error"]</div>}
+@if(TempData["Success"]!=null){<div class="alert alert-success">@TempData["Success"]</div>}
+<div class="alert alert-info">Web login does not check in, check out, start, extend or pause attendance. Your check-in/out and hours continue to come exclusively from the existing phone attendance system.</div>
+@if(attendance == null){<div class="alert alert-warning">No phone attendance record exists for today (@ViewBag.Today). Check in on your phone on approved office Wi-Fi before submitting today's report.</div>}
+<div class="sh-card p-3"><h4>Today's work report</h4><form action="/EmployeeWork/Submit" method="post">@Html.AntiForgeryToken()
+@if(calling){<div class="row g-2">@foreach(var metric in new (string key,string label,int val)[]{("unreadChats","Unread chats",current?.UnreadChats??0),("newLeads","New leads",current?.NewLeads??0),("qualifiedLeads","Qualified leads",current?.QualifiedLeads??0),("followUp","Follow up",current?.FollowUp??0),("calls","Calls",current?.Calls??0),("potential","Potential",current?.Potential??0),("walkIns","Walk ins",current?.WalkIns??0),("conversion","Conversion",current?.Conversion??0)}){<div class="col-sm-6 col-md-3"><label class="form-label" for="@metric.key">@metric.label</label><input id="@metric.key" name="@metric.key" type="number" min="0" max="999" class="form-control" value="@metric.val" required /></div>}</div>}
+<div class="mt-3"><label class="form-label" for="textContent">Work notes / processing report</label><textarea id="textContent" name="textContent" class="form-control" maxlength="15000" rows="6">@current?.TextContent</textarea></div>
+<button class="btn btn-primary mt-3" disabled="@(attendance==null)">Save today's report</button></form></div>
+<div class="sh-card p-3 mt-3"><h4>My report history</h4><div class="table-responsive"><table class="table"><thead><tr><th>Attendance date</th><th>Notes</th><th>Submitted UTC</th></tr></thead><tbody>@foreach(var report in Model){<tr><td>@report.Attendance?.Date</td><td>@report.TextContent</td><td>@report.SubmittedAt.ToString("yyyy-MM-dd HH:mm")</td></tr>}</tbody></table></div></div>
